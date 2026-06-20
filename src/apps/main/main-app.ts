@@ -1,4 +1,31 @@
+import { appConfig } from "../../config/env";
+import { mountLoginPage } from "../../features/auth/pages/login-page";
+import { sessionService } from "../../features/auth/services/session.service";
+import { isAuthenticated } from "../../guards/auth-guard";
+
 export function mountMainApp(root: HTMLElement): void {
+  if (!isAuthenticated()) {
+    mountLoginPage(root, {
+      onSubmit: async ({ email, password }) => {
+        if (appConfig.authBypassEnabled) {
+          sessionService.setSession({
+            accessToken: buildMockAccessToken(email, password),
+          });
+
+          mountMainApp(root);
+          return;
+        }
+
+        console.info("Login skeleton submit", {
+          email,
+          hasPassword: Boolean(password),
+        });
+      },
+    });
+
+    return;
+  }
+
   root.innerHTML = `
     <main class="app-shell app-shell--main" aria-labelledby="main-app-title">
       <aside class="app-sidebar" aria-label="Main navigation">
@@ -23,8 +50,35 @@ export function mountMainApp(root: HTMLElement): void {
           <p>
             This shell is the starting point for the CRIT Assistance operational app.
           </p>
+          ${
+            appConfig.authBypassEnabled
+              ? `
+                <p>
+                  Auth bypass is enabled for local development. A mock access token was used
+                  to enter the application shell.
+                </p>
+                <button id="logout-button" type="button">Clear mock session</button>
+              `
+              : ""
+          }
         </section>
       </section>
     </main>
   `;
+
+  if (appConfig.authBypassEnabled) {
+    const logoutButton = root.querySelector<HTMLButtonElement>("#logout-button");
+
+    logoutButton?.addEventListener("click", () => {
+      sessionService.clearSession();
+      mountMainApp(root);
+    });
+  }
+}
+
+function buildMockAccessToken(email: string, password: string): string {
+  const normalizedEmail = email.trim().toLowerCase();
+  const passwordMarker = password ? "with-password" : "without-password";
+
+  return `mock-token:${normalizedEmail}:${passwordMarker}`;
 }
