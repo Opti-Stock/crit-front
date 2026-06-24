@@ -9,6 +9,7 @@ import {
 import { mountCalendarPage } from "../../features/calendar/pages/calendar-page";
 import { mountHandoffNotesPage } from "../../features/handoff-notes/pages/handoff-notes-page";
 import { mountMedicalNotesPage } from "../../features/medical-notes/pages/medical-notes-page";
+import { mountNotificationsPage } from "../../features/notifications/pages/notifications-page";
 import { isAuthenticated } from "../../guards/auth-guard";
 import type { UserRole } from "../../types/role.types";
 import { mountDashboardPage } from "./pages/dashboard-page";
@@ -140,6 +141,9 @@ function mountMainView(root: HTMLElement, key: string, role: UserRole): void {
       return;
     case "handoff-notes":
       mountHandoffNotesPage(root, role);
+      return;
+    case "notifications":
+      mountNotificationsPage(root);
       return;
     default:
       mountDashboardPage(root, role);

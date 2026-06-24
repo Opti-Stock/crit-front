@@ -47,6 +47,20 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
     app: "main",
   },
   {
+    key: "notifications",
+    label: "Notificaciones",
+    allowedRoles: [
+      "recepcion",
+      "coordinador",
+      "medico",
+      "terapeuta",
+      "personal_acompanamiento",
+      "direccion",
+      "admin",
+    ],
+    app: "main",
+  },
+  {
     key: "admin",
     label: "Admin",
     allowedRoles: ["direccion", "admin"],
