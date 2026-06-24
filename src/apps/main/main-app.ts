@@ -1,4 +1,5 @@
 import { appConfig } from "../../config/env";
+import { mountAttendancePage } from "../../features/attendance/pages/attendance-page";
 import { mountLoginPage } from "../../features/auth/pages/login-page";
 import { sessionService } from "../../features/auth/services/session.service";
 import {
@@ -6,6 +7,8 @@ import {
   getMainNavigationForRole,
 } from "../../features/auth/services/role-navigation.service";
 import { isAuthenticated } from "../../guards/auth-guard";
+import type { UserRole } from "../../types/role.types";
+import { mountDashboardPage } from "./pages/dashboard-page";
 
 export function mountMainApp(root: HTMLElement): void {
   if (!isAuthenticated()) {
@@ -41,6 +44,9 @@ export function mountMainApp(root: HTMLElement): void {
 
   const mainNavigation = getMainNavigationForRole(session.role);
   const adminEntry = getAdminEntryForRole(session.role);
+  const activeKey = resolveActiveNavigationKey(
+    mainNavigation.map((item) => item.key),
+  );
 
   root.innerHTML = `
     <main class="app-shell app-shell--main" aria-labelledby="main-app-title">
@@ -48,9 +54,10 @@ export function mountMainApp(root: HTMLElement): void {
         <p class="app-brand">CRIT Assistance</p>
         <nav class="app-nav">
           ${mainNavigation
-            .map((item, index) => {
-              const activeClass = index === 0 ? " app-nav__item--active" : "";
-              return `<span class="app-nav__item${activeClass}">${item.label}</span>`;
+            .map((item) => {
+              const activeClass =
+                item.key === activeKey ? " app-nav__item--active" : "";
+              return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-nav-key="${item.key}">${item.label}</a>`;
             })
             .join("")}
 
@@ -69,29 +76,26 @@ export function mountMainApp(root: HTMLElement): void {
           </div>
           <span class="app-status">${formatRoleLabel(session.role)}</span>
         </header>
-        <section class="app-panel" aria-label="Current status">
-          <h2>Frontend foundation ready</h2>
-          <p>
-            This shell is the starting point for the CRIT Assistance operational app.
-          </p>
-          <p>
-            Current role: <strong>${formatRoleLabel(session.role)}</strong>
-          </p>
-          ${
-            appConfig.authBypassEnabled
-              ? `
-                <p>
-                  Auth bypass is enabled for local development. A mock access token was used
-                  to enter the application shell.
-                </p>
-                <button id="logout-button" type="button">Clear mock session</button>
-              `
-              : ""
-          }
-        </section>
+        <section id="main-view" aria-live="polite"></section>
+        ${
+          appConfig.authBypassEnabled
+            ? `<button id="logout-button" class="secondary-action" type="button">Clear mock session</button>`
+            : ""
+        }
       </section>
     </main>
   `;
+
+  const viewRoot = root.querySelector<HTMLElement>("#main-view");
+  if (viewRoot) {
+    mountMainView(viewRoot, activeKey, session.role);
+  }
+
+  root.querySelectorAll<HTMLAnchorElement>("[data-nav-key]").forEach((link) => {
+    link.addEventListener("click", () => {
+      window.setTimeout(() => mountMainApp(root), 0);
+    });
+  });
 
   if (appConfig.authBypassEnabled) {
     const logoutButton = root.querySelector<HTMLButtonElement>("#logout-button");
@@ -110,18 +114,44 @@ function buildMockAccessToken(email: string, password: string): string {
   return `mock-token:${normalizedEmail}:${passwordMarker}`;
 }
 
+function resolveActiveNavigationKey(allowedKeys: string[]): string {
+  const hashKey = window.location.hash.replace("#", "");
+
+  if (allowedKeys.includes(hashKey)) {
+    return hashKey;
+  }
+
+  return allowedKeys[0] ?? "dashboard";
+}
+
+function mountMainView(root: HTMLElement, key: string, role: UserRole): void {
+  switch (key) {
+    case "attendance":
+      mountAttendancePage(root, role);
+      return;
+    default:
+      mountDashboardPage(root, role);
+  }
+}
+
 function formatRoleLabel(role: string): string {
   switch (role) {
-    case "recepcion":
-      return "Recepción";
-    case "medico":
-      return "Médico";
-    case "terapeuta":
-      return "Terapeuta";
-    case "direccion":
-      return "Dirección";
     case "admin":
       return "Admin";
+    case "direccion":
+      return "Direccion";
+    case "recepcion":
+      return "Recepcion";
+    case "coordinador":
+      return "Coordinador";
+    case "medico":
+      return "Medico";
+    case "terapeuta":
+      return "Terapeuta";
+    case "personal_acompanamiento":
+      return "Personal de acompanamiento";
+    case "paciente_familia":
+      return "Paciente/familia";
     default:
       return role;
   }
