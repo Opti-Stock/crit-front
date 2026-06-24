@@ -23,10 +23,32 @@ export interface ApiClient {
     path: string,
     options?: ApiRequestOptions,
   ): Promise<TResponse>;
+  requestWithMeta<TResponse, TMeta = PaginationMeta>(
+    path: string,
+    options?: ApiRequestOptions,
+  ): Promise<ApiSuccessResponse<TResponse, TMeta>>;
 }
 
 export interface ApiErrorPayload {
   code?: string;
   message?: string;
   details?: unknown;
+}
+
+export interface ApiSuccessResponse<TData, TMeta = never> {
+  success: true;
+  data: TData;
+  meta?: TMeta;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: ApiErrorPayload;
+}
+
+export interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }

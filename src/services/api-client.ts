@@ -1,13 +1,16 @@
 import type {
   ApiClient,
+  ApiErrorResponse,
   ApiErrorPayload,
   ApiRequestBody,
   ApiRequestOptions,
+  ApiSuccessResponse,
 } from "../types/api";
 
 interface CreateApiClientOptions {
   baseUrl: string;
   defaultHeaders?: HeadersInit;
+  getAccessToken?: () => string | null;
 }
 
 export class ApiClientError extends Error {
@@ -33,12 +36,32 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
       path: string,
       requestOptions: ApiRequestOptions = {},
     ): Promise<TResponse> {
+      const envelope = await requestEnvelope<TResponse>(path, requestOptions);
+      return envelope.data;
+    },
+    async requestWithMeta<TResponse, TMeta>(
+      path: string,
+      requestOptions: ApiRequestOptions = {},
+    ): Promise<ApiSuccessResponse<TResponse, TMeta>> {
+      return requestEnvelope<TResponse, TMeta>(path, requestOptions);
+    },
+  };
+
+  async function requestEnvelope<TResponse, TMeta = never>(
+    path: string,
+    requestOptions: ApiRequestOptions,
+  ): Promise<ApiSuccessResponse<TResponse, TMeta>> {
       const url = buildUrl(baseUrl, path, requestOptions.query);
       const headers = buildHeaders(
         options.defaultHeaders,
         requestOptions.headers,
         requestOptions.body,
       );
+      const accessToken = options.getAccessToken?.();
+
+      if (accessToken && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${accessToken}`);
+      }
 
       const response = await fetch(url, {
         ...requestOptions,
@@ -51,9 +74,8 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         throw new ApiClientError(response, await parseErrorPayload(response));
       }
 
-      return parseResponse<TResponse>(response);
-    },
-  };
+      return parseResponseEnvelope<TResponse, TMeta>(response);
+    }
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -119,18 +141,33 @@ function isJsonBody(body: ApiRequestBody): body is Record<string, unknown> | unk
   );
 }
 
-async function parseResponse<TResponse>(response: Response): Promise<TResponse> {
+async function parseResponseEnvelope<TResponse, TMeta>(
+  response: Response,
+): Promise<ApiSuccessResponse<TResponse, TMeta>> {
   if (response.status === 204) {
-    return undefined as TResponse;
+    return { success: true, data: undefined as TResponse };
   }
 
   const contentType = response.headers.get("Content-Type");
 
   if (contentType?.includes("application/json")) {
-    return response.json() as Promise<TResponse>;
+    const parsed = (await response.json()) as
+      | ApiSuccessResponse<TResponse, TMeta>
+      | TResponse;
+
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "success" in parsed &&
+      "data" in parsed
+    ) {
+      return parsed as ApiSuccessResponse<TResponse, TMeta>;
+    }
+
+    return { success: true, data: parsed as TResponse };
   }
 
-  return response.text() as Promise<TResponse>;
+  return { success: true, data: (await response.text()) as TResponse };
 }
 
 async function parseErrorPayload(
@@ -143,7 +180,20 @@ async function parseErrorPayload(
   }
 
   try {
-    return (await response.json()) as ApiErrorPayload;
+    const parsed = (await response.json()) as
+      | ApiErrorPayload
+      | ApiErrorResponse;
+
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "success" in parsed &&
+      parsed.success === false
+    ) {
+      return (parsed as ApiErrorResponse).error;
+    }
+
+    return parsed as ApiErrorPayload;
   } catch {
     return undefined;
   }

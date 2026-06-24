@@ -57,10 +57,12 @@ select {
 }
 
 .app-nav__item {
+  display: block;
   min-height: 40px;
   padding: 10px 12px;
   border-radius: 8px;
   color: #dce4ec;
+  text-decoration: none;
 }
 
 .app-nav__item--active {
@@ -132,6 +134,152 @@ select {
 .app-panel p {
   color: #4f5f6f;
   line-height: 1.6;
+}
+
+.feature-page {
+  display: grid;
+  gap: 18px;
+}
+
+.feature-header,
+.data-card__header,
+.button-row,
+.form-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.feature-header h2,
+.data-card h3,
+.app-panel h3 {
+  margin: 0;
+}
+
+.data-list {
+  display: grid;
+  gap: 14px;
+}
+
+.data-card,
+.form-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #d8dee5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.data-card__meta,
+.hint-text {
+  margin: 0;
+  color: #607080;
+  font-size: 0.9rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.detail-grid dt {
+  color: #607080;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.detail-grid dd {
+  margin: 3px 0 0;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid #cad3dc;
+  border-radius: 999px;
+  color: #354454;
+  background: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.inline-alert {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #f6c9c2;
+  border-radius: 8px;
+  color: #8a1f11;
+  background: #fff4f2;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed #cad3dc;
+  border-radius: 8px;
+  color: #607080;
+  background: #ffffff;
+}
+
+.form-panel label {
+  display: grid;
+  gap: 6px;
+  color: #17202a;
+  font-weight: 700;
+}
+
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.form-panel input,
+.form-panel select,
+.form-panel textarea,
+.feature-header select,
+.form-row select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #cad3dc;
+  border-radius: 8px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.form-panel textarea {
+  resize: vertical;
+}
+
+button,
+.secondary-action {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #22313f;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #22313f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover,
+.secondary-action:hover {
+  background: #1b2731;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-row input {
+  width: auto;
+  min-height: auto;
 }
 
 @media (max-width: 720px) {
