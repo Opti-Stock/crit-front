@@ -86,7 +86,7 @@ function render(root: HTMLElement, state: CalendarState): void {
 
 function renderForm(state: CalendarState): string {
   return `
-    <form class="form-panel form-grid" data-appointment-form>
+    <form class="form-panel form-grid calendar-form" data-appointment-form>
       ${selectField("patientId", "Paciente", state.patients)}
       ${selectField("collaboratorId", "Profesional", state.collaborators)}
       ${selectField("clinicId", "Clinica", state.clinics)}
@@ -94,8 +94,8 @@ function renderForm(state: CalendarState): string {
       ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes)}
       <label>Inicio<input name="startsAt" type="datetime-local" required /></label>
       <label>Fin<input name="endsAt" type="datetime-local" required /></label>
-      <label>Pre sesion<input name="preSessionMinutes" type="number" min="0" value="0" /></label>
-      <label>Post sesion<input name="postSessionMinutes" type="number" min="0" value="0" /></label>
+      <label>Pre sesion<input name="preSessionMinutes" type="number" min="0" value="5" /></label>
+      <label>Post sesion<input name="postSessionMinutes" type="number" min="0" value="40" /></label>
       <button type="submit">Crear cita</button>
     </form>
   `;

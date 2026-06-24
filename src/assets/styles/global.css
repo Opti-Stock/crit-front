@@ -236,6 +236,15 @@ select {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
+.calendar-form {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.calendar-form input[type="datetime-local"] {
+  min-width: 0;
+  font-size: 0.95rem;
+}
+
 .form-panel input,
 .form-panel select,
 .form-panel textarea,
