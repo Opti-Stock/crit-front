@@ -106,6 +106,7 @@ Crear un archivo `.env` basado en `.env.example`.
 VITE_MAIN_API_URL=http://localhost:3000/api
 VITE_ADMIN_API_URL=http://localhost:3001/admin
 VITE_APP_NAME=CRIT Assistance
+VITE_AUTH_BYPASS_ENABLED=true
 ```
 
 ## Convención de ramas
