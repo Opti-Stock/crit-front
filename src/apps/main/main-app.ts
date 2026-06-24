@@ -6,6 +6,7 @@ import {
   getAdminEntryForRole,
   getMainNavigationForRole,
 } from "../../features/auth/services/role-navigation.service";
+import { mountCalendarPage } from "../../features/calendar/pages/calendar-page";
 import { mountMedicalNotesPage } from "../../features/medical-notes/pages/medical-notes-page";
 import { isAuthenticated } from "../../guards/auth-guard";
 import type { UserRole } from "../../types/role.types";
@@ -129,6 +130,9 @@ function mountMainView(root: HTMLElement, key: string, role: UserRole): void {
   switch (key) {
     case "attendance":
       mountAttendancePage(root, role);
+      return;
+    case "calendar":
+      mountCalendarPage(root);
       return;
     case "medical-notes":
       mountMedicalNotesPage(root, role);

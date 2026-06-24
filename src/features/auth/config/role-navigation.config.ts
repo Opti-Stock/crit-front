@@ -29,6 +29,12 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
     app: "main",
   },
   {
+    key: "calendar",
+    label: "Calendario",
+    allowedRoles: ["recepcion", "coordinador", "medico", "terapeuta", "direccion", "admin"],
+    app: "main",
+  },
+  {
     key: "medical-notes",
     label: "Notas medicas",
     allowedRoles: ["medico", "terapeuta"],
