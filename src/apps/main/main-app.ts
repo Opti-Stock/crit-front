@@ -7,6 +7,7 @@ import {
   getMainNavigationForRole,
 } from "../../features/auth/services/role-navigation.service";
 import { mountCalendarPage } from "../../features/calendar/pages/calendar-page";
+import { mountHandoffNotesPage } from "../../features/handoff-notes/pages/handoff-notes-page";
 import { mountMedicalNotesPage } from "../../features/medical-notes/pages/medical-notes-page";
 import { isAuthenticated } from "../../guards/auth-guard";
 import type { UserRole } from "../../types/role.types";
@@ -136,6 +137,9 @@ function mountMainView(root: HTMLElement, key: string, role: UserRole): void {
       return;
     case "medical-notes":
       mountMedicalNotesPage(root, role);
+      return;
+    case "handoff-notes":
+      mountHandoffNotesPage(root, role);
       return;
     default:
       mountDashboardPage(root, role);
