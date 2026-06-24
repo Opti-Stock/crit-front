@@ -1,7 +1,12 @@
+import { USER_ROLES, type UserRole } from "../../../types/role.types";
 import type { LoginFormValues, LoginPageOptions } from "../types/auth.types";
 
 export function renderLoginPage(options: LoginPageOptions = {}): string {
-  const { errorMessage = null, isSubmitting = false } = options;
+  const {
+    errorMessage = null,
+    isSubmitting = false,
+    availableRoles = USER_ROLES,
+  } = options;
 
   return `
     <main class="auth-page" aria-labelledby="login-title">
@@ -39,6 +44,19 @@ export function renderLoginPage(options: LoginPageOptions = {}): string {
             />
           </div>
 
+          <div class="auth-form__field">
+            <label for="role">Role</label>
+            <select id="role" name="role" required>
+              ${availableRoles
+                .map(
+                  (role) => `
+                    <option value="${role}">${formatRoleLabel(role)}</option>
+                  `,
+                )
+                .join("")}
+            </select>
+          </div>
+
           ${
             errorMessage
               ? `<p class="auth-form__error" role="alert">${escapeHtml(errorMessage)}</p>`
@@ -74,14 +92,33 @@ export function mountLoginPage(
     event.preventDefault();
 
     const formData = new FormData(form);
+    const selectedRole = String(formData.get("role") ?? "") as UserRole;
 
     const values: LoginFormValues = {
       email: String(formData.get("email") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
+      role: selectedRole,
     };
 
     await options.onSubmit?.(values);
   });
+}
+
+function formatRoleLabel(role: UserRole): string {
+  switch (role) {
+    case "recepcion":
+      return "Recepción";
+    case "medico":
+      return "Médico";
+    case "terapeuta":
+      return "Terapeuta";
+    case "direccion":
+      return "Dirección";
+    case "admin":
+      return "Admin";
+    default:
+      return role;
+  }
 }
 
 function escapeHtml(value: string): string {

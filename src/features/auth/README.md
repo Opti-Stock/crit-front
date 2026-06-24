@@ -62,3 +62,48 @@ Environment variable:
 
 ```env
 VITE_AUTH_BYPASS_ENABLED=true
+```
+
+---
+
+## Role-based navigation rules
+
+The frontend currently applies role-aware navigation rules at UI level for the main and admin application shells.
+
+### Supported roles
+- `recepcion`
+- `medico`
+- `terapeuta`
+- `direccion`
+- `admin`
+
+### Current navigation behavior
+
+#### recepcion
+- can access: Dashboard, Attendance, Calendar
+- cannot access: Clinical Notes, Admin entry
+
+#### medico
+- can access: Dashboard, Attendance, Calendar, Notes
+- cannot access: Admin entry
+
+#### terapeuta
+- can access: Dashboard, Attendance, Calendar, Notes
+- cannot access: Admin entry
+
+#### direccion
+- can access: Dashboard, Admin entry
+- cannot access: Attendance, Calendar, Notes
+
+#### admin
+- can access: Dashboard, Admin entry
+- cannot access: Attendance, Calendar, Notes
+
+### Centralization
+Role rules are centralized in:
+- `src/features/auth/config/role-navigation.config.ts`
+- `src/features/auth/services/role-navigation.service.ts`
+- `src/guards/role-guard.ts`
+
+### Future change to option B
+If admin and dirección later need access to operational sections such as Attendance, Calendar, or Notes, the change should be done by updating the `allowedRoles` arrays in `role-navigation.config.ts`.

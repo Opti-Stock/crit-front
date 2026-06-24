@@ -255,3 +255,18 @@ select {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+.app-nav__item--admin-entry {
+  display: block;
+  text-decoration: none;
+}
+
+.auth-form__field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cad3dc;
+  border-radius: 8px;
+  color: #17202a;
+  background: #ffffff;
+}

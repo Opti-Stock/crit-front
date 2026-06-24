@@ -1,4 +1,5 @@
 import type { SessionData } from "../types/auth.types";
+import { USER_ROLES } from "../../../types/role.types";
 
 const SESSION_STORAGE_KEY = "crit-assistance.session";
 
@@ -13,13 +14,19 @@ export class SessionService {
     try {
       const parsedSession = JSON.parse(rawSession) as Partial<SessionData>;
 
-      if (!parsedSession.accessToken || typeof parsedSession.accessToken !== "string") {
+      if (
+        !parsedSession.accessToken ||
+        typeof parsedSession.accessToken !== "string" ||
+        !parsedSession.role ||
+        !USER_ROLES.includes(parsedSession.role)
+      ) {
         this.clearSession();
         return null;
       }
 
       return {
         accessToken: parsedSession.accessToken,
+        role: parsedSession.role,
       };
     } catch {
       this.clearSession();
@@ -29,6 +36,10 @@ export class SessionService {
 
   getAccessToken(): string | null {
     return this.getSession()?.accessToken ?? null;
+  }
+
+  getRole(): SessionData["role"] | null {
+    return this.getSession()?.role ?? null;
   }
 
   setSession(session: SessionData): void {
