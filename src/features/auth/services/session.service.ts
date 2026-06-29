@@ -53,6 +53,20 @@ export class SessionService {
   isAuthenticated(): boolean {
     return Boolean(this.getAccessToken());
   }
+  
+
+  setAccessToken(accessToken: string): void {
+  const session = this.getSession();
+
+  if (!session) {
+    return;
+  }
+
+  this.setSession({
+    ...session,
+    accessToken,
+  });
+}
 }
 
 export const sessionService = new SessionService();

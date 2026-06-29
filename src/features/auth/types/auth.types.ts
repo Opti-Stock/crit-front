@@ -5,7 +5,13 @@ export interface SessionData {
   role: UserRole;
 }
 
+export interface TenantOption {
+  code: string;
+  name: string;
+}
+
 export interface LoginFormValues {
+  tenantCode: string;
   email: string;
   password: string;
   role: UserRole;
@@ -15,5 +21,9 @@ export interface LoginPageOptions {
   onSubmit?: (values: LoginFormValues) => Promise<void> | void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
+
   availableRoles?: readonly UserRole[];
+  availableTenants?: readonly TenantOption[];
+
+  showRoleSelector?: boolean;
 }
