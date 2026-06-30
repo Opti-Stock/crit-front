@@ -12,38 +12,32 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
     key: "dashboard",
     label: "Dashboard",
     allowedRoles: [
-      "recepcion",
-      "coordinador",
-      "medico",
-      "terapeuta",
-      "personal_acompanamiento",
-      "direccion",
-      "admin",
+      "admin"
     ],
     app: "main",
   },
   {
     key: "attendance",
     label: "Asistencias",
-    allowedRoles: ["recepcion", "coordinador", "medico", "terapeuta", "direccion", "admin"],
+    allowedRoles: [ "coordinador", "medico", "terapeuta", "direccion", "admin"],
     app: "main",
   },
   {
     key: "calendar",
     label: "Calendario",
-    allowedRoles: ["recepcion", "coordinador", "medico", "terapeuta", "direccion", "admin"],
+    allowedRoles: ["recepcion","direccion", "admin"],
     app: "main",
   },
   {
     key: "medical-notes",
     label: "Notas medicas",
-    allowedRoles: ["medico", "terapeuta"],
+    allowedRoles: ["medico", "terapeuta","direccion", "admin"],
     app: "main",
   },
   {
     key: "handoff-notes",
     label: "Notas de enlace",
-    allowedRoles: ["admin", "medico", "terapeuta", "personal_acompanamiento"],
+    allowedRoles: [ "medico", "terapeuta", "personal_acompanamiento","direccion", "admin"],
     app: "main",
   },
   {
@@ -63,7 +57,7 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
   {
     key: "admin",
     label: "Admin",
-    allowedRoles: ["direccion", "admin"],
+    allowedRoles: ["admin"],
     app: "admin-entry",
   },
 ] as const;

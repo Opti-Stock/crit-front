@@ -1,11 +1,16 @@
 import { USER_ROLES, type UserRole } from "../../../types/role.types";
-import type { LoginFormValues, LoginPageOptions } from "../types/auth.types";
+import type {
+  LoginFormValues,
+  LoginPageOptions,
+} from "../types/auth.types";
 
 export function renderLoginPage(options: LoginPageOptions = {}): string {
   const {
     errorMessage = null,
     isSubmitting = false,
     availableRoles = USER_ROLES,
+    availableTenants = [],
+    showRoleSelector = false,
   } = options;
 
   return `
@@ -18,8 +23,26 @@ export function renderLoginPage(options: LoginPageOptions = {}): string {
             Access the operational workspace with your assigned credentials.
           </p>
         </header>
-
         <form id="login-form" class="auth-form" novalidate>
+          <div class="auth-form__field">
+            <label for="tenant">Tenant</label>
+
+            <select
+              id="tenant"
+              name="tenantCode"
+              required
+            >
+              ${availableTenants
+                .map(
+                  (tenant) => `
+                    <option value="${tenant.code}">
+                      ${escapeHtml(tenant.name)}
+                    </option>
+                  `,
+                )
+                .join("")}
+            </select>
+          </div>
           <div class="auth-form__field">
             <label for="email">Email</label>
             <input
@@ -43,19 +66,31 @@ export function renderLoginPage(options: LoginPageOptions = {}): string {
               required
             />
           </div>
+          ${
+            showRoleSelector
+              ? `
+                <div class="auth-form__field">
+                  <label for="role">Role</label>
 
-          <div class="auth-form__field">
-            <label for="role">Role</label>
-            <select id="role" name="role" required>
-              ${availableRoles
-                .map(
-                  (role) => `
-                    <option value="${role}">${formatRoleLabel(role)}</option>
-                  `,
-                )
-                .join("")}
-            </select>
-          </div>
+                  <select
+                    id="role"
+                    name="role"
+                    required
+                  >
+                    ${availableRoles
+                      .map(
+                        (role) => `
+                          <option value="${role}">
+                            ${formatRoleLabel(role)}
+                          </option>
+                        `,
+                      )
+                      .join("")}
+                  </select>
+                </div>
+              `
+              : ""
+          }
 
           ${
             errorMessage
@@ -92,9 +127,12 @@ export function mountLoginPage(
     event.preventDefault();
 
     const formData = new FormData(form);
-    const selectedRole = String(formData.get("role") ?? "") as UserRole;
-
+    const selectedRole =
+      formData.get("role") === null
+        ? "recepcion"
+        : (String(formData.get("role")) as UserRole);
     const values: LoginFormValues = {
+      tenantCode: String(formData.get("tenantCode") ?? "").trim(),
       email: String(formData.get("email") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
       role: selectedRole,

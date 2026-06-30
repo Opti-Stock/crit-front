@@ -1,5 +1,15 @@
 import { sessionService } from "../../features/auth/services/session.service";
 import { canAccessAdminEntry } from "../../guards/role-guard";
+import type { UserRole } from "../../types/role.types";
+import {
+  ADMIN_NAVIGATION_ITEMS,
+  getAdminNavigationItem,
+  resolveAdminNavigationKey,
+} from "./routes/admin-navigation";
+import { mountClinicsPage } from "./pages/clinics-page";
+import { mountCollaboratorsPage } from "./pages/collaborators-page";
+import { mountRolesPage } from "./pages/roles-page";
+import { mountUsersPage } from "./pages/users-page";
 
 export function mountAdminApp(root: HTMLElement): void {
   const session = sessionService.getSession();
@@ -34,32 +44,79 @@ export function mountAdminApp(root: HTMLElement): void {
     return;
   }
 
+  const activeKey = resolveAdminNavigationKey();
+  const activeItem = getAdminNavigationItem(activeKey);
+
   root.innerHTML = `
     <main class="app-shell app-shell--admin" aria-labelledby="admin-app-title">
       <aside class="app-sidebar" aria-label="Admin navigation">
         <p class="app-brand">CRIT Admin</p>
         <nav class="app-nav">
-          <span class="app-nav__item app-nav__item--active">Usuarios</span>
-          <span class="app-nav__item">Roles</span>
-          <span class="app-nav__item">Clinicas</span>
-          <span class="app-nav__item">Colaboradores</span>
+          ${ADMIN_NAVIGATION_ITEMS.map((item) => {
+            const activeClass =
+              item.key === activeKey ? " app-nav__item--active" : "";
+
+            return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-admin-nav-key="${item.key}">${item.label}</a>`;
+          }).join("")}
         </nav>
       </aside>
+
       <section class="app-content">
         <header class="app-header">
           <div>
             <p class="app-eyebrow">Admin app</p>
-            <h1 id="admin-app-title">Administration workspace</h1>
+            <h1 id="admin-app-title">${activeItem.label}</h1>
           </div>
-          <span class="app-status">MVP shell</span>
+          <span class="app-status">${formatRoleLabel(session.role)}</span>
         </header>
-        <section class="app-panel" aria-label="Current status">
-          <h2>Admin foundation ready</h2>
-          <p>
-            This shell is the starting point for CRIT Assistance administration.
-          </p>
-        </section>
+
+        <section id="admin-view" aria-live="polite"></section>
       </section>
     </main>
   `;
+
+  const viewRoot = root.querySelector<HTMLElement>("#admin-view");
+  if (viewRoot) {
+    void mountAdminView(viewRoot, activeKey);
+  }
+
+  root.querySelectorAll<HTMLAnchorElement>("[data-admin-nav-key]").forEach((link) => {
+    link.addEventListener("click", () => {
+      window.setTimeout(() => mountAdminApp(root), 0);
+    });
+  });
+}
+
+  async function mountAdminView(
+    root: HTMLElement,
+    key: string,
+  ): Promise<void> {
+    switch (key) {
+      case "roles":
+        await mountRolesPage(root);
+        return;
+
+      case "clinics":
+        await mountClinicsPage(root);
+        return;
+
+      case "collaborators":
+        await mountCollaboratorsPage(root);
+        return;
+
+      case "users":
+      default:
+        await mountUsersPage(root);
+    }
+  }
+
+function formatRoleLabel(role: UserRole): string {
+  switch (role) {
+    case "admin":
+      return "Admin";
+    case "direccion":
+      return "Direccion";
+    default:
+      return role;
+  }
 }

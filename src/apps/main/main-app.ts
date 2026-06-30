@@ -14,28 +14,13 @@ import { isAuthenticated } from "../../guards/auth-guard";
 import type { UserRole } from "../../types/role.types";
 import { mountDashboardPage } from "./pages/dashboard-page";
 
+import { authService } from "../../features/auth/services/auth.service";
+import { getAvailableTenants } from "../../features/auth/services/tenant.service";
+
+
 export function mountMainApp(root: HTMLElement): void {
   if (!isAuthenticated()) {
-    mountLoginPage(root, {
-      onSubmit: async ({ email, password, role }) => {
-        if (appConfig.authBypassEnabled) {
-          sessionService.setSession({
-            accessToken: buildMockAccessToken(email, password),
-            role,
-          });
-
-          mountMainApp(root);
-          return;
-        }
-
-        console.info("Login skeleton submit", {
-          email,
-          role,
-          hasPassword: Boolean(password),
-        });
-      },
-    });
-
+    void renderLogin(root);
     return;
   }
 
@@ -171,4 +156,50 @@ function formatRoleLabel(role: string): string {
     default:
       return role;
   }
+}
+async function renderLogin(root: HTMLElement): Promise<void> {
+  const tenants = await getAvailableTenants();
+
+  mountLoginPage(root, {
+    availableTenants: tenants,
+    showRoleSelector: appConfig.authBypassEnabled,
+
+    onSubmit: async (values) => {
+      if (appConfig.authBypassEnabled) {
+        sessionService.setSession({
+          accessToken: buildMockAccessToken(
+            values.email,
+            values.password,
+          ),
+          role: values.role,
+        });
+
+        mountMainApp(root);
+        return;
+      }
+
+      try {
+        const session = await authService.login(values);
+
+        sessionService.setSession(session);
+
+        mountMainApp(root);
+      } catch (error) {
+        console.error(error);
+
+        mountLoginPage(root, {
+          availableTenants: tenants,
+          showRoleSelector: false,
+          errorMessage: "Invalid credentials.",
+          onSubmit: async (retryValues) => {
+            const session = await authService.login(retryValues);
+
+            sessionService.setSession(session);
+
+            mountMainApp(root);
+          },
+        });
+      }
+    },
+  });
 }
