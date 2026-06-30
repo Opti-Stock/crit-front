@@ -33,4 +33,5 @@ export const appConfig = {
   mainApiUrl: readEnvValue("VITE_MAIN_API_URL", "http://localhost:3000/api"),
   adminApiUrl: readEnvValue("VITE_ADMIN_API_URL", "http://localhost:3001/admin"),
   authBypassEnabled: readBooleanEnvValue("VITE_AUTH_BYPASS_ENABLED", false),
+  adminMocksEnabled: readBooleanEnvValue("VITE_USE_ADMIN_MOCKS",true,),
 } as const;

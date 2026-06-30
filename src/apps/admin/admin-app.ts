@@ -77,7 +77,7 @@ export function mountAdminApp(root: HTMLElement): void {
 
   const viewRoot = root.querySelector<HTMLElement>("#admin-view");
   if (viewRoot) {
-    mountAdminView(viewRoot, activeKey);
+    void mountAdminView(viewRoot, activeKey);
   }
 
   root.querySelectorAll<HTMLAnchorElement>("[data-admin-nav-key]").forEach((link) => {
@@ -87,22 +87,28 @@ export function mountAdminApp(root: HTMLElement): void {
   });
 }
 
-function mountAdminView(root: HTMLElement, key: string): void {
-  switch (key) {
-    case "roles":
-      mountRolesPage(root);
-      return;
-    case "clinics":
-      mountClinicsPage(root);
-      return;
-    case "collaborators":
-      mountCollaboratorsPage(root);
-      return;
-    case "users":
-    default:
-      mountUsersPage(root);
+  async function mountAdminView(
+    root: HTMLElement,
+    key: string,
+  ): Promise<void> {
+    switch (key) {
+      case "roles":
+        await mountRolesPage(root);
+        return;
+
+      case "clinics":
+        await mountClinicsPage(root);
+        return;
+
+      case "collaborators":
+        await mountCollaboratorsPage(root);
+        return;
+
+      case "users":
+      default:
+        await mountUsersPage(root);
+    }
   }
-}
 
 function formatRoleLabel(role: UserRole): string {
   switch (role) {
