@@ -24,11 +24,12 @@ interface AttendanceState {
   rows: AttendanceViewModel[];
 }
 
-const STATUS_LABELS: Record<AttendanceStatus, string> = {
-  pending: "Pendiente",
-  present: "Presente",
-  absent: "Ausente",
-  late: "Tarde",
+type AttendanceVisualStatus = AttendanceStatus | "scheduled";
+
+const STATUS_LABELS: Record<AttendanceVisualStatus, string> = {
+  scheduled: "Programada",
+  present: "Asistencia",
+  absent: "Inasistencia",
   cancelled: "Cancelada",
   rescheduled: "Reprogramada",
 };
@@ -107,7 +108,8 @@ function renderRows(rows: AttendanceViewModel[], role: UserRole): string {
 }
 
 function renderRow(row: AttendanceViewModel, role: UserRole): string {
-  const attendanceStatus = row.attendance?.status ?? "pending";
+  const attendanceStatus: AttendanceVisualStatus =
+    row.attendance?.status ?? "scheduled";
   const canRegister = !row.attendance && (role === "medico" || role === "terapeuta");
   const canPrepareEdit = Boolean(row.attendance);
 
@@ -213,8 +215,8 @@ async function registerAttendance(
     card.querySelector<HTMLInputElement>("[data-notes-required]")?.checked,
   );
 
-  if (!appointmentId || !status || status === "pending") {
-    state.message = "Selecciona un estado distinto de pendiente para registrar.";
+  if (!appointmentId || !status) {
+    state.message = "Selecciona un estado para registrar asistencia.";
     render(root, state, role);
     return;
   }

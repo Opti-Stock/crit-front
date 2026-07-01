@@ -38,7 +38,7 @@ export function mountMainApp(root: HTMLElement): void {
   );
 
   root.innerHTML = `
-    <main class="app-shell app-shell--main" aria-labelledby="main-app-title">
+    <main class="app-shell app-shell--main ${activeKey === "calendar" ? "app-shell--calendar" : ""}" aria-labelledby="main-app-title">
       <aside class="app-sidebar" aria-label="Main navigation">
         <p class="app-brand">CRIT Assistance</p>
         <nav class="app-nav">
@@ -57,7 +57,7 @@ export function mountMainApp(root: HTMLElement): void {
           }
         </nav>
       </aside>
-      <section class="app-content">
+      <section class="app-content ${activeKey === "calendar" ? "app-content--calendar" : ""}">
         <header class="app-header">
           <div>
             <p class="app-eyebrow">Main app</p>
@@ -68,7 +68,7 @@ export function mountMainApp(root: HTMLElement): void {
         <section id="main-view" aria-live="polite"></section>
         ${
           appConfig.authBypassEnabled
-            ? `<button id="logout-button" class="secondary-action" type="button">Clear mock session</button>`
+            ? `<button id="logout-button" class="secondary-action mock-session-button" type="button">Clear mock session</button>`
             : ""
         }
       </section>
@@ -119,7 +119,7 @@ function mountMainView(root: HTMLElement, key: string, role: UserRole): void {
       mountAttendancePage(root, role);
       return;
     case "calendar":
-      mountCalendarPage(root);
+      mountCalendarPage(root, role);
       return;
     case "medical-notes":
       mountMedicalNotesPage(root, role);
