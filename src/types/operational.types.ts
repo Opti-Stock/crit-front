@@ -73,17 +73,28 @@ export interface MedicalNoteSummary {
   updatedAt: string;
 }
 
-export type HandoffPriority = "low" | "medium" | "high" | "urgent";
 export type HandoffStatus = "pending" | "read" | "archived";
+export type HandoffCategory =
+  | "delay"
+  | "cancellation"
+  | "absence"
+  | "reschedule"
+  | "general_notice";
 
 export interface HandoffNoteSummary {
   id: string;
   patient: { id: string; fullName: string };
   appointmentId: string | null;
-  createdBy: { id: string; fullName: string };
+  createdBy: {
+    id: string;
+    fullName: string;
+    role?: string;
+    area?: string;
+  };
   title: string;
   content: string;
-  priority: HandoffPriority;
+  category?: HandoffCategory;
+  area?: string;
   status: HandoffStatus;
   recipients: { userId: string; fullName: string; readAt: string | null }[];
   createdAt: string;
@@ -104,6 +115,14 @@ export interface NotificationSummary {
   type: NotificationType;
   title: string;
   message: string;
+  target?: {
+    type?: string;
+    patientId?: string;
+    handoffNoteId?: string;
+    noteId?: string;
+    entityId?: string;
+  };
+  metadata?: Record<string, unknown>;
   readAt: string | null;
   createdAt: string;
 }

@@ -8,17 +8,26 @@ import {
 } from "../../features/auth/services/role-navigation.service";
 import { mountCalendarPage } from "../../features/calendar/pages/calendar-page";
 import { mountHandoffNotesPage } from "../../features/handoff-notes/pages/handoff-notes-page";
+import { subscribeToHandoffNotesRealtime } from "../../features/handoff-notes/services/handoff-notes-realtime.service";
 import { mountMedicalNotesPage } from "../../features/medical-notes/pages/medical-notes-page";
 import { mountNotificationsPage } from "../../features/notifications/pages/notifications-page";
 import { isAuthenticated } from "../../guards/auth-guard";
+import { canAccessHandoffNotes } from "../../guards/role-guard";
+import { listHandoffNotes } from "../../services/main-api/handoff-notes";
 import type { UserRole } from "../../types/role.types";
 import { mountDashboardPage } from "./pages/dashboard-page";
 
 import { authService } from "../../features/auth/services/auth.service";
 import { getAvailableTenants } from "../../features/auth/services/tenant.service";
 
+let hashNavigationHandler: (() => void) | null = null;
+let hashNavigationRoot: HTMLElement | null = null;
+let handoffNavRealtimeUnsubscribe: (() => void) | null = null;
+let handoffBadgeRefreshHandler: (() => void) | null = null;
 
 export function mountMainApp(root: HTMLElement): void {
+  bindHashNavigation(root);
+
   if (!isAuthenticated()) {
     void renderLogin(root);
     return;
@@ -46,7 +55,11 @@ export function mountMainApp(root: HTMLElement): void {
             .map((item) => {
               const activeClass =
                 item.key === activeKey ? " app-nav__item--active" : "";
-              return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-nav-key="${item.key}">${item.label}</a>`;
+              const badge =
+                item.key === "handoff-notes"
+                  ? `<span class="app-nav__badge" data-handoff-nav-badge hidden></span>`
+                  : "";
+              return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-nav-key="${item.key}"><span>${item.label}</span>${badge}</a>`;
             })
             .join("")}
 
@@ -80,9 +93,16 @@ export function mountMainApp(root: HTMLElement): void {
     mountMainView(viewRoot, activeKey, session.role);
   }
 
+  bindHandoffNavBadge(root, session.role);
+
   root.querySelectorAll<HTMLAnchorElement>("[data-nav-key]").forEach((link) => {
-    link.addEventListener("click", () => {
-      window.setTimeout(() => mountMainApp(root), 0);
+    link.addEventListener("click", (event) => {
+      const targetKey = link.dataset.navKey;
+
+      if (targetKey && targetKey === getHashRouteKey()) {
+        event.preventDefault();
+        mountMainApp(root);
+      }
     });
   });
 
@@ -96,6 +116,20 @@ export function mountMainApp(root: HTMLElement): void {
   }
 }
 
+function bindHashNavigation(root: HTMLElement): void {
+  if (hashNavigationRoot === root && hashNavigationHandler) {
+    return;
+  }
+
+  if (hashNavigationHandler) {
+    window.removeEventListener("hashchange", hashNavigationHandler);
+  }
+
+  hashNavigationRoot = root;
+  hashNavigationHandler = () => mountMainApp(root);
+  window.addEventListener("hashchange", hashNavigationHandler);
+}
+
 function buildMockAccessToken(email: string, password: string): string {
   const normalizedEmail = email.trim().toLowerCase();
   const passwordMarker = password ? "with-password" : "without-password";
@@ -104,13 +138,85 @@ function buildMockAccessToken(email: string, password: string): string {
 }
 
 function resolveActiveNavigationKey(allowedKeys: string[]): string {
-  const hashKey = window.location.hash.replace("#", "");
+  const hashKey = getHashRouteKey();
 
   if (allowedKeys.includes(hashKey)) {
     return hashKey;
   }
 
   return allowedKeys[0] ?? "dashboard";
+}
+
+function getHashRouteKey(): string {
+  return window.location.hash.replace("#", "").split("?")[0] ?? "";
+}
+
+function bindHandoffNavBadge(root: HTMLElement, role: UserRole): void {
+  if (handoffNavRealtimeUnsubscribe) {
+    handoffNavRealtimeUnsubscribe();
+    handoffNavRealtimeUnsubscribe = null;
+  }
+
+  if (handoffBadgeRefreshHandler) {
+    window.removeEventListener(
+      "handoff-notes:unread-count-changed",
+      handoffBadgeRefreshHandler,
+    );
+    handoffBadgeRefreshHandler = null;
+  }
+
+  if (!canAccessHandoffNotes(role)) {
+    return;
+  }
+
+  void refreshHandoffNavBadge(root, role);
+
+  handoffBadgeRefreshHandler = () => {
+    void refreshHandoffNavBadge(root, role);
+  };
+  window.addEventListener(
+    "handoff-notes:unread-count-changed",
+    handoffBadgeRefreshHandler,
+  );
+
+  handoffNavRealtimeUnsubscribe = subscribeToHandoffNotesRealtime({
+    onNoteCreated: (event) => {
+      void refreshHandoffNavBadge(root, role, event.unreadCount);
+    },
+    onNoteRead: (event) => {
+      void refreshHandoffNavBadge(root, role, event.unreadCount);
+    },
+  }).unsubscribe;
+}
+
+async function refreshHandoffNavBadge(
+  root: HTMLElement,
+  role: UserRole,
+  realtimeCount?: number,
+): Promise<void> {
+  if (!canAccessHandoffNotes(role)) return;
+
+  const badge = root.querySelector<HTMLElement>("[data-handoff-nav-badge]");
+  if (!badge) return;
+
+  try {
+    const result =
+      realtimeCount === undefined
+        ? await listHandoffNotes({ pageSize: 100, status: "pending" })
+        : null;
+    const unreadCount =
+      realtimeCount ?? result?.meta?.total ?? result?.data.length ?? 0;
+
+    badge.hidden = unreadCount <= 0;
+    badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+    badge.setAttribute(
+      "aria-label",
+      `${unreadCount} notas de enlace no leidas`,
+    );
+  } catch {
+    badge.hidden = true;
+    badge.textContent = "";
+  }
 }
 
 function mountMainView(root: HTMLElement, key: string, role: UserRole): void {

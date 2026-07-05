@@ -2,7 +2,6 @@ import { mainApiClient } from "./client";
 import type { PaginationMeta } from "../../types/api";
 import type {
   HandoffNoteSummary,
-  HandoffPriority,
   HandoffStatus,
 } from "../../types/operational.types";
 
@@ -10,7 +9,6 @@ export function listHandoffNotes(query: {
   page?: number;
   pageSize?: number;
   status?: HandoffStatus;
-  priority?: HandoffPriority;
 } = {}) {
   return mainApiClient.requestWithMeta<HandoffNoteSummary[], PaginationMeta>(
     "/handoff-notes",
@@ -23,9 +21,9 @@ export function createHandoffNote(input: {
   appointmentId?: string;
   title: string;
   content: string;
-  priority: HandoffPriority;
   recipientUserIds: string[];
 }) {
+  // Author identity is intentionally omitted; the API must derive it from the authenticated session.
   return mainApiClient.request<HandoffNoteSummary>("/handoff-notes", {
     method: "POST",
     body: input,

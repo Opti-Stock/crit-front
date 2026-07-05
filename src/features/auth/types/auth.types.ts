@@ -3,6 +3,12 @@ import type { UserRole } from "../../../types/role.types";
 export interface SessionData {
   accessToken: string;
   role: UserRole;
+  user?: {
+    id: string;
+    fullName?: string;
+    email?: string;
+    area?: string;
+  };
 }
 
 export interface TenantOption {

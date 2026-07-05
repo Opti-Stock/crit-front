@@ -37,7 +37,15 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
   {
     key: "handoff-notes",
     label: "Notas de enlace",
-    allowedRoles: [ "medico", "terapeuta", "personal_acompanamiento","direccion", "admin"],
+    allowedRoles: [
+      "recepcion",
+      "coordinador",
+      "medico",
+      "terapeuta",
+      "personal_acompanamiento",
+      "direccion",
+      "admin",
+    ],
     app: "main",
   },
   {
