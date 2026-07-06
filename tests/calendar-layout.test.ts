@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { layoutCalendarAppointments } from "../src/features/calendar/utils/calendar-layout.ts";
+import { toCalendarAppointments } from "../src/features/calendar/utils/calendar-adapter.ts";
+import { isMinuteStep } from "../src/features/calendar/utils/calendar-date.ts";
+import type { AppointmentSummary } from "../src/types/operational.types.ts";
 
 interface TestAppointment {
   id: string;
@@ -28,6 +31,26 @@ function appointment(
     item: { id },
     startsAt,
     endsAt,
+  };
+}
+
+function appointmentSummary(
+  id: string,
+  overrides: Partial<AppointmentSummary> = {},
+): AppointmentSummary {
+  return {
+    id,
+    patient: { id: "patient-1", fullName: "Paciente Demo" },
+    collaborator: { id: "collaborator-1", fullName: "Terapeuta Demo" },
+    clinic: { id: "clinic-1", name: "Clinica" },
+    room: { id: "room-1", name: "Sala 1" },
+    appointmentType: { id: "type-1", name: "Terapia" },
+    startsAt: "2026-07-01T10:00:00.000Z",
+    endsAt: "2026-07-01T10:45:00.000Z",
+    preSessionMinutes: 0,
+    postSessionMinutes: 0,
+    status: "scheduled",
+    ...overrides,
   };
 }
 
@@ -117,4 +140,37 @@ test("uses enough lanes for three appointments that overlap at the same time", (
   [0, 100 / 3, 200 / 3].forEach((expectedLeft, index) => {
     assert.ok(Math.abs(blocks[index].leftPercent - expectedLeft) < 0.0001);
   });
+});
+
+test("does not expose incomplete appointments to calendar views", () => {
+  const calendarAppointments = toCalendarAppointments(
+    [
+      appointmentSummary("valid"),
+      appointmentSummary("missing-patient", {
+        patient: { id: "patient-2", fullName: "" },
+      }),
+      appointmentSummary("invalid-start", {
+        startsAt: "not-a-date",
+      }),
+      appointmentSummary("invalid-duration", {
+        startsAt: "2026-07-01T10:00:00.000Z",
+        endsAt: "2026-07-01T10:00:00.000Z",
+      }),
+    ],
+    [],
+  );
+
+  assert.deepEqual(
+    calendarAppointments.map((item) => item.appointment.id),
+    ["valid"],
+  );
+});
+
+test("validates appointment times in five minute increments", () => {
+  assert.equal(isMinuteStep(new Date(2026, 6, 1, 10, 0), 5), true);
+  assert.equal(isMinuteStep(new Date(2026, 6, 1, 10, 5), 5), true);
+  assert.equal(isMinuteStep(new Date(2026, 6, 1, 10, 3), 5), false);
+  assert.equal(isMinuteStep(new Date(2026, 6, 1, 11, 47), 5), false);
+  assert.equal(isMinuteStep(new Date(2026, 6, 1, 10, 10, 1), 5), false);
+  assert.equal(isMinuteStep(new Date("not-a-date"), 5), false);
 });
