@@ -72,6 +72,11 @@ function renderItems(items: NotificationSummary[]): string {
       </div>
       <p>${escapeHtml(item.message)}</p>
       <div class="button-row">
+        ${
+          item.type === "handoff_note_received"
+            ? `<button type="button" data-notification-open-handoff>Abrir historial</button>`
+            : ""
+        }
         <button type="button" data-notification-read>Marcar leida</button>
         <button type="button" data-notification-unread>Marcar no leida</button>
       </div>
@@ -97,6 +102,13 @@ function bindEvents(root: HTMLElement, state: NotificationsState): void {
   root.querySelectorAll<HTMLButtonElement>("[data-notification-unread]").forEach(
     (button) => button.addEventListener("click", () => void setRead(root, state, button, false)),
   );
+  root.querySelectorAll<HTMLButtonElement>("[data-notification-open-handoff]").forEach(
+    (button) =>
+      button.addEventListener(
+        "click",
+        () => void openHandoffNotification(root, state, button),
+      ),
+  );
 }
 
 async function setRead(
@@ -116,4 +128,84 @@ async function setRead(
       error instanceof Error ? error.message : "No se pudo actualizar la notificacion.";
     render(root, state);
   }
+}
+
+async function openHandoffNotification(
+  root: HTMLElement,
+  state: NotificationsState,
+  button: HTMLButtonElement,
+): Promise<void> {
+  const id = button.closest<HTMLElement>("[data-notification-id]")?.dataset.notificationId;
+  if (!id) return;
+
+  const notification = state.items.find((item) => item.id === id);
+  if (!notification) return;
+
+  try {
+    if (!notification.readAt) {
+      await markNotificationAsRead(id);
+    }
+
+    const hash = buildHandoffHash(notification);
+
+    if (window.location.hash === hash) {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    } else {
+      window.location.hash = hash;
+    }
+  } catch (error) {
+    state.message =
+      error instanceof Error ? error.message : "No se pudo abrir la nota de enlace.";
+    render(root, state);
+  }
+}
+
+function buildHandoffHash(notification: NotificationSummary): string {
+  const target = getHandoffTarget(notification);
+  const params = new URLSearchParams();
+
+  if (target.patientId) params.set("patientId", target.patientId);
+  if (target.noteId) params.set("noteId", target.noteId);
+
+  const query = params.toString();
+  return query ? `#handoff-notes?${query}` : "#handoff-notes";
+}
+
+function getHandoffTarget(notification: NotificationSummary): {
+  patientId: string;
+  noteId: string;
+} {
+  const metadata = notification.metadata;
+  const metadataPatient = readObject(metadata?.patient);
+  const metadataNote = readObject(metadata?.handoffNote);
+
+  return {
+    patientId:
+      notification.target?.patientId ??
+      readString(metadata, "patientId") ??
+      readString(metadataPatient, "id") ??
+      "",
+    noteId:
+      notification.target?.handoffNoteId ??
+      notification.target?.noteId ??
+      notification.target?.entityId ??
+      readString(metadata, "handoffNoteId") ??
+      readString(metadata, "noteId") ??
+      readString(metadataNote, "id") ??
+      "",
+  };
+}
+
+function readObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(
+  source: Record<string, unknown> | null | undefined,
+  key: string,
+): string | null {
+  const value = source?.[key];
+  return typeof value === "string" ? value : null;
 }

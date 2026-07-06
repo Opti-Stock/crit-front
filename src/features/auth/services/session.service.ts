@@ -24,10 +24,34 @@ export class SessionService {
         return null;
       }
 
-      return {
+      const session: SessionData = {
         accessToken: parsedSession.accessToken,
         role: parsedSession.role,
       };
+
+      if (
+        parsedSession.user &&
+        typeof parsedSession.user === "object" &&
+        typeof parsedSession.user.id === "string"
+      ) {
+        session.user = {
+          id: parsedSession.user.id,
+          fullName:
+            typeof parsedSession.user.fullName === "string"
+              ? parsedSession.user.fullName
+              : undefined,
+          email:
+            typeof parsedSession.user.email === "string"
+              ? parsedSession.user.email
+              : undefined,
+          area:
+            typeof parsedSession.user.area === "string"
+              ? parsedSession.user.area
+              : undefined,
+        };
+      }
+
+      return session;
     } catch {
       this.clearSession();
       return null;

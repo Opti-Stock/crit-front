@@ -18,6 +18,7 @@ interface LoginResponse {
     tenantId: string;
     fullName: string;
     email: string;
+    area?: string;
     roles: string[];
   };
 }
@@ -40,6 +41,12 @@ class AuthService {
     return {
       accessToken: response.accessToken,
       role,
+      user: {
+        id: response.user.id,
+        fullName: response.user.fullName,
+        email: response.user.email,
+        area: response.user.area,
+      },
     };
   }
 

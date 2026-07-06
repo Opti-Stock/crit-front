@@ -10,8 +10,11 @@ const ATTENDANCE_ROLES: readonly UserRole[] = [
   "direccion",
   "admin",
 ];
-const HANDOFF_NOTE_CREATE_ROLES: readonly UserRole[] = [
+const HANDOFF_NOTE_ROLES: readonly UserRole[] = [
   "admin",
+  "direccion",
+  "recepcion",
+  "coordinador",
   "medico",
   "terapeuta",
   "personal_acompanamiento",
@@ -29,6 +32,10 @@ export function canAccessAttendance(role: UserRole): boolean {
   return ATTENDANCE_ROLES.includes(role);
 }
 
+export function canAccessHandoffNotes(role: UserRole): boolean {
+  return HANDOFF_NOTE_ROLES.includes(role);
+}
+
 export function canCreateHandoffNotes(role: UserRole): boolean {
-  return HANDOFF_NOTE_CREATE_ROLES.includes(role);
+  return HANDOFF_NOTE_ROLES.includes(role);
 }
