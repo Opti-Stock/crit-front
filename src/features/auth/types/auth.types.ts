@@ -17,7 +17,6 @@ export interface TenantOption {
 }
 
 export interface LoginFormValues {
-  tenantCode: string;
   email: string;
   password: string;
   role: UserRole;
@@ -29,7 +28,5 @@ export interface LoginPageOptions {
   errorMessage?: string | null;
 
   availableRoles?: readonly UserRole[];
-  availableTenants?: readonly TenantOption[];
-
   showRoleSelector?: boolean;
 }
