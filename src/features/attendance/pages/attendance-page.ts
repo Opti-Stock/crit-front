@@ -144,8 +144,8 @@ async function load(
 
   const range = dayRange(state.selectedDate);
   const collaboratorId =
-    isClinicalAttendanceRole(role) && state.currentUserId
-      ? state.currentUserId
+    isClinicalAttendanceRole(role)
+      ? sessionService.getSession()?.user?.collaboratorId ?? undefined
       : undefined;
 
   try {
@@ -709,8 +709,7 @@ function toActionStatus(status: AttendanceStatus): AttendanceActionStatus {
 }
 
 function getCheckInLabel(row: AttendanceViewModel): string {
-  if (!row.attendance?.checkedAt) return "Sin check-in general";
-  return `Registrado ${formatTime(row.attendance.checkedAt)}`;
+  return row.appointment.isCheckedIn ? "Con check-in general" : "Sin check-in general";
 }
 
 function matchesArea(appointment: AppointmentSummary, area: string): boolean {

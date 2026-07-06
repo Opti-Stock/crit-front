@@ -8,6 +8,7 @@ export interface SessionData {
     fullName?: string;
     email?: string;
     area?: string;
+    collaboratorId?: string | null;
   };
 }
 

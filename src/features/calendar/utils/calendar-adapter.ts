@@ -55,6 +55,10 @@ function deriveVisualState(
     return attendance.status;
   }
 
+  if (appointment.attendanceStatus && appointment.attendanceStatus !== "pending") {
+    return appointment.attendanceStatus;
+  }
+
   if (appointment.status === "cancelled" || appointment.status === "rescheduled") {
     return appointment.status;
   }
