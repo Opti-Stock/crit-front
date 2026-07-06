@@ -29,7 +29,6 @@ class AuthService {
       {
         method: "POST",
         body: {
-          tenantCode: values.tenantCode,
           email: values.email,
           password: values.password,
         },
