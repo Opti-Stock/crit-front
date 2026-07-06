@@ -34,6 +34,7 @@ import {
   formatTime,
   getRangeForView,
   getVisibleDays,
+  isMinuteStep,
   moveAnchorDate,
   toDateKey,
 } from "../utils/calendar-date";
@@ -67,6 +68,25 @@ const CREATE_APPOINTMENT_ROLES: readonly UserRole[] = [
 ];
 
 const PIXELS_PER_MINUTE = 1.2;
+const APPOINTMENT_TIME_STEP_MINUTES = 5;
+const APPOINTMENT_TIME_STEP_SECONDS = APPOINTMENT_TIME_STEP_MINUTES * 60;
+const PATIENT_SEARCH_DEBOUNCE_MS = 300;
+const PATIENT_SEARCH_PAGE_SIZE = 10;
+
+type PatientComboboxKind = "filter" | "form";
+type PatientSearchStatus = "idle" | "loading" | "loaded" | "error";
+
+interface PatientComboboxState {
+  query: string;
+  selected: CatalogItem | null;
+  options: CatalogItem[];
+  status: PatientSearchStatus;
+  error: string | null;
+  isOpen: boolean;
+  activeIndex: number;
+  requestId: number;
+  debounceTimer: number | null;
+}
 
 interface CalendarState {
   role: UserRole;
@@ -74,12 +94,12 @@ interface CalendarState {
   anchorDate: Date;
   appointments: AppointmentSummary[];
   attendance: AttendanceSummary[];
-  patients: CatalogItem[];
   collaborators: CatalogItem[];
   clinics: CatalogItem[];
   rooms: CatalogItem[];
   appointmentTypes: AppointmentTypeSummary[];
   filters: CalendarFilters;
+  patientComboboxes: Record<PatientComboboxKind, PatientComboboxState>;
   selectedAppointmentId: string | null;
   showCreateForm: boolean;
   isFiltersCollapsed: boolean;
@@ -92,7 +112,7 @@ interface CalendarState {
 }
 
 interface CalendarFilters {
-  search: string;
+  patientId: string;
   clinicId: string;
   collaboratorId: string;
   roomId: string;
@@ -109,19 +129,22 @@ export function mountCalendarPage(root: HTMLElement, role: UserRole): void {
     anchorDate: new Date(),
     appointments: [],
     attendance: [],
-    patients: [],
     collaborators: [],
     clinics: [],
     rooms: [],
     appointmentTypes: [],
     filters: {
-      search: "",
+      patientId: "",
       clinicId: "",
       collaboratorId: "",
       roomId: "",
       appointmentTypeId: "",
       appointmentStatus: "",
       attendanceStatus: "",
+    },
+    patientComboboxes: {
+      filter: createPatientComboboxState(),
+      form: createPatientComboboxState(),
     },
     selectedAppointmentId: null,
     showCreateForm: false,
@@ -140,12 +163,13 @@ export function mountCalendarPage(root: HTMLElement, role: UserRole): void {
 async function load(root: HTMLElement, state: CalendarState): Promise<void> {
   try {
     const range = getRangeForView(state.anchorDate, state.view);
-    const [appointments, attendance, patients, collaborators, clinics, rooms, appointmentTypes] =
+    const [appointments, attendance, collaborators, clinics, rooms, appointmentTypes] =
       await Promise.all([
         listAppointments({
           pageSize: 100,
           from: range.from,
           to: range.to,
+          patientId: state.filters.patientId || undefined,
           clinicId: state.filters.clinicId || undefined,
           collaboratorId: state.filters.collaboratorId || undefined,
           status: state.filters.appointmentStatus || undefined,
@@ -154,21 +178,20 @@ async function load(root: HTMLElement, state: CalendarState): Promise<void> {
           pageSize: 100,
           from: range.from,
           to: range.to,
+          patientId: state.filters.patientId || undefined,
           clinicId: state.filters.clinicId || undefined,
           collaboratorId: state.filters.collaboratorId || undefined,
           status: (state.filters.attendanceStatus || undefined) as
             | AttendanceStatus
             | undefined,
         }),
-        listPatients({ pageSize: 100 }),
         listCollaborators({ pageSize: 100 }),
         listClinics({ pageSize: 100 }),
         listRooms({ pageSize: 100 }),
         listAppointmentTypes(),
-      ]);
+    ]);
     state.appointments = appointments.data;
     state.attendance = attendance.data;
-    state.patients = patients.data;
     state.collaborators = collaborators.data;
     state.clinics = clinics.data;
     state.rooms = rooms.data;
@@ -258,13 +281,17 @@ function renderForm(state: CalendarState): string {
         </div>
         <button class="icon-button icon-button--danger" type="button" data-calendar-action="toggle-form" aria-label="Cerrar nueva cita">x</button>
       </div>
-      ${selectField("patientId", "Paciente", state.patients)}
+      ${renderPatientCombobox("form", "Paciente", state.patientComboboxes.form, {
+        hiddenName: "patientId",
+        placeholder: "Escribe el nombre del paciente",
+        required: true,
+      })}
       ${selectField("collaboratorId", "Profesional", state.collaborators)}
       ${selectField("clinicId", "Clinica", state.clinics)}
       ${selectField("roomId", "Cuarto", state.rooms)}
       ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes)}
-      <label>Inicio<input name="startsAt" type="datetime-local" value="${formatInputDateTime(defaultStart)}" required /></label>
-      <label>Fin<input name="endsAt" type="datetime-local" value="${formatInputDateTime(defaultEnd)}" required /></label>
+      <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultStart)}" required /></label>
+      <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultEnd)}" required /></label>
       <label>Pre sesion<input name="preSessionMinutes" type="number" min="0" value="5" /></label>
       <label>Post sesion<input name="postSessionMinutes" type="number" min="0" value="40" /></label>
       <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Creando..." : "Crear cita"}</button>
@@ -306,7 +333,11 @@ function renderSidebar(
           <h3>Filtros</h3>
           <button class="text-action" type="button" data-calendar-action="clear-filters">Limpiar</button>
         </div>
-        <label>Buscar paciente o folio<input name="search" type="search" value="${escapeHtml(state.filters.search)}" placeholder="Paciente, profesional..." /></label>
+        ${renderPatientCombobox("filter", "Buscar paciente", state.patientComboboxes.filter, {
+          hiddenName: "patientId",
+          placeholder: "Escribe el nombre del paciente",
+          required: false,
+        })}
         ${filterSelect("clinicId", "Area", state.clinics, state.filters.clinicId)}
         ${filterSelect("collaboratorId", "Terapeuta", state.collaborators, state.filters.collaboratorId)}
         ${renderActiveFilterChips(state)}
@@ -406,7 +437,11 @@ function renderActiveFilterChips(state: CalendarState): string {
     );
   };
 
-  addChip("Busqueda", state.filters.search, "search");
+  addChip(
+    "Paciente",
+    getPatientFilterLabel(state),
+    "patientId",
+  );
   addChip("Area", findCatalogLabel(state.clinics, state.filters.clinicId), "clinicId");
   addChip(
     "Terapeuta",
@@ -498,7 +533,6 @@ function renderDayColumn(
       workdayEndHour: WORKDAY_END_HOUR,
     },
   );
-  const currentLine = renderCurrentTimeLine(day);
   const hours = Array.from(
     { length: WORKDAY_END_HOUR - WORKDAY_START_HOUR },
     (_, index) => WORKDAY_START_HOUR + index,
@@ -509,26 +543,9 @@ function renderDayColumn(
       ${hours
         .map((hour) => `<button class="calendar-slot" type="button" data-slot-date="${key}" data-slot-hour="${hour}" aria-label="Crear cita ${key} ${hour}:00"></button>`)
         .join("")}
-      ${currentLine}
       ${positioned.map(renderAppointmentBlock).join("")}
     </div>
   `;
-}
-
-function renderCurrentTimeLine(day: Date): string {
-  const now = new Date();
-
-  if (toDateKey(now) !== toDateKey(day)) {
-    return "";
-  }
-
-  const workdayMinutes = (WORKDAY_END_HOUR - WORKDAY_START_HOUR) * 60;
-  const topMinutes = Math.min(
-    Math.max((now.getHours() - WORKDAY_START_HOUR) * 60 + now.getMinutes(), 0),
-    workdayMinutes,
-  );
-  const top = topMinutes * PIXELS_PER_MINUTE;
-  return `<div class="calendar-current-time" style="top: ${top}px"><span>${escapeHtml(formatTime(now))}</span></div>`;
 }
 
 function renderAppointmentBlock(
@@ -686,6 +703,103 @@ function renderDetailPanel(
   `;
 }
 
+function renderPatientCombobox(
+  kind: PatientComboboxKind,
+  label: string,
+  combo: PatientComboboxState,
+  options: {
+    hiddenName: string;
+    placeholder: string;
+    required: boolean;
+  },
+): string {
+  const inputId = `calendar-${kind}-patient-search`;
+  const listId = `calendar-${kind}-patient-options`;
+  const activeId =
+    combo.isOpen && combo.activeIndex >= 0
+      ? `${listId}-${combo.activeIndex}`
+      : "";
+
+  return `
+    <div class="calendar-combobox-field" data-patient-combobox="${kind}">
+      <label for="${inputId}">${label}</label>
+      <div class="calendar-combobox">
+        <input
+          id="${inputId}"
+          type="search"
+          value="${escapeHtml(combo.query)}"
+          placeholder="${escapeHtml(options.placeholder)}"
+          autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="${combo.isOpen}"
+          aria-controls="${listId}"
+          ${activeId ? `aria-activedescendant="${activeId}"` : ""}
+          data-patient-search="${kind}"
+          ${options.required ? "required" : ""}
+        />
+        <input type="hidden" name="${options.hiddenName}" value="${escapeHtml(combo.selected?.id ?? "")}" data-patient-selected-id="${kind}" />
+        <button class="calendar-combobox__clear" type="button" data-patient-clear="${kind}" aria-label="Limpiar paciente" ${combo.query ? "" : "hidden"}>x</button>
+        <div id="${listId}" class="calendar-combobox__list${combo.isOpen ? " calendar-combobox__list--open" : ""}" role="listbox">
+          ${renderPatientComboboxOptions(kind, combo, listId)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPatientComboboxOptions(
+  kind: PatientComboboxKind,
+  combo: PatientComboboxState,
+  listId: string,
+): string {
+  if (!combo.isOpen) {
+    return "";
+  }
+
+  if (!combo.query.trim()) {
+    return `<div class="calendar-combobox__state">Escribe para buscar pacientes.</div>`;
+  }
+
+  if (combo.status === "loading") {
+    return `<div class="calendar-combobox__state" role="status">Cargando pacientes...</div>`;
+  }
+
+  if (combo.status === "error") {
+    return `<div class="calendar-combobox__state calendar-combobox__state--error" role="alert">${escapeHtml(combo.error ?? "No se pudieron cargar pacientes.")}</div>`;
+  }
+
+  if (combo.status === "loaded" && combo.options.length === 0) {
+    return `<div class="calendar-combobox__state">Sin resultados.</div>`;
+  }
+
+  return combo.options
+    .map((option, index) => {
+      const active = index === combo.activeIndex;
+      const classes = [
+        "calendar-combobox__option",
+        active ? "calendar-combobox__option--active" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `
+        <button
+          id="${listId}-${index}"
+          class="${classes}"
+          type="button"
+          role="option"
+          aria-selected="${active}"
+          data-patient-option-kind="${kind}"
+          data-patient-option-index="${index}"
+        >
+          <strong>${escapeHtml(getCatalogItemLabel(option))}</strong>
+          <span>Folio ${escapeHtml(getPatientFolio(option))}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
 function selectField(
   name: string,
   label: string,
@@ -697,7 +811,7 @@ function selectField(
       ${label}
       <select name="${name}" required>
         <option value="">Selecciona</option>
-        ${items.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selectedValue ? "selected" : ""}>${escapeHtml(item.fullName ?? item.name ?? item.id)}</option>`).join("")}
+        ${items.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selectedValue ? "selected" : ""}>${escapeHtml(getCatalogItemLabel(item))}</option>`).join("")}
       </select>
     </label>
   `;
@@ -714,7 +828,7 @@ function filterSelect(
       ${label}
       <select name="${name}">
         <option value="">Todos</option>
-        ${items.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selectedValue ? "selected" : ""}>${escapeHtml(item.fullName ?? item.name ?? item.id)}</option>`).join("")}
+        ${items.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === selectedValue ? "selected" : ""}>${escapeHtml(getCatalogItemLabel(item))}</option>`).join("")}
       </select>
     </label>
   `;
@@ -770,21 +884,14 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
       if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
         return;
       }
+      if (target.matches("[data-patient-search], [data-patient-selected-id]")) {
+        return;
+      }
       updateFilter(root, state, target.name as keyof CalendarFilters, target.value);
     },
   );
 
-  root.querySelector<HTMLFormElement>("[data-calendar-filters]")?.addEventListener(
-    "input",
-    (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement) || target.name !== "search") {
-        return;
-      }
-      state.filters.search = target.value;
-      render(root, state);
-    },
-  );
+  bindPatientComboboxes(root, state);
 
   root.querySelectorAll<HTMLButtonElement>("[data-mini-date]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -831,22 +938,367 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
   });
 }
 
+function bindPatientComboboxes(root: HTMLElement, state: CalendarState): void {
+  root.querySelectorAll<HTMLInputElement>("[data-patient-search]").forEach((input) => {
+    const kind = parsePatientComboboxKind(input.dataset.patientSearch);
+    if (!kind) return;
+
+    input.addEventListener("focus", () => {
+      const combo = state.patientComboboxes[kind];
+      combo.isOpen = true;
+      if (combo.query.trim() && combo.status === "idle") {
+        queuePatientSearch(root, state, kind, combo.query);
+      }
+      syncPatientCombobox(root, state, kind);
+    });
+
+    input.addEventListener("input", () => {
+      handlePatientSearchInput(root, state, kind, input.value);
+    });
+
+    input.addEventListener("keydown", (event) => {
+      handlePatientComboboxKeydown(root, state, kind, event);
+    });
+  });
+
+  root.querySelectorAll<HTMLElement>("[data-patient-combobox]").forEach((wrapper) => {
+    const kind = parsePatientComboboxKind(wrapper.dataset.patientCombobox);
+    if (!kind) return;
+
+    wrapper.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const clearButton = target.closest<HTMLButtonElement>("[data-patient-clear]");
+      if (clearButton) {
+        event.preventDefault();
+        clearPatientCombobox(root, state, kind);
+        return;
+      }
+
+      const optionButton = target.closest<HTMLButtonElement>("[data-patient-option-index]");
+      if (!optionButton) return;
+      const index = Number(optionButton.dataset.patientOptionIndex ?? -1);
+      selectPatientOption(root, state, kind, index);
+    });
+
+    wrapper.addEventListener("focusout", () => {
+      window.setTimeout(() => {
+        if (wrapper.contains(document.activeElement)) {
+          return;
+        }
+        state.patientComboboxes[kind].isOpen = false;
+        syncPatientCombobox(root, state, kind);
+      });
+    });
+  });
+}
+
+function handlePatientSearchInput(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+  value: string,
+): void {
+  const combo = state.patientComboboxes[kind];
+  const previousSelected = combo.selected;
+  combo.query = value;
+  combo.isOpen = true;
+  combo.activeIndex = -1;
+  combo.error = null;
+
+  if (previousSelected && value !== getCatalogItemLabel(previousSelected)) {
+    combo.selected = null;
+    if (kind === "filter" && state.filters.patientId) {
+      state.filters.patientId = "";
+      state.isLoading = true;
+      render(root, state);
+      void load(root, state);
+    }
+  }
+
+  queuePatientSearch(root, state, kind, value);
+}
+
+function handlePatientComboboxKeydown(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+  event: KeyboardEvent,
+): void {
+  const combo = state.patientComboboxes[kind];
+
+  if (event.key === "Escape") {
+    combo.isOpen = false;
+    syncPatientCombobox(root, state, kind);
+    return;
+  }
+
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") {
+    return;
+  }
+
+  if (event.key === "Enter") {
+    if (combo.isOpen && combo.activeIndex >= 0) {
+      event.preventDefault();
+      selectPatientOption(root, state, kind, combo.activeIndex);
+    }
+    return;
+  }
+
+  event.preventDefault();
+  combo.isOpen = true;
+
+  if (combo.options.length === 0) {
+    syncPatientCombobox(root, state, kind);
+    return;
+  }
+
+  const direction = event.key === "ArrowDown" ? 1 : -1;
+  const nextIndex = combo.activeIndex + direction;
+  combo.activeIndex =
+    (nextIndex + combo.options.length) % combo.options.length;
+  syncPatientCombobox(root, state, kind);
+}
+
+function queuePatientSearch(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+  query: string,
+): void {
+  const combo = state.patientComboboxes[kind];
+  const trimmedQuery = query.trim();
+
+  if (combo.debounceTimer) {
+    window.clearTimeout(combo.debounceTimer);
+    combo.debounceTimer = null;
+  }
+
+  if (!trimmedQuery) {
+    combo.options = [];
+    combo.status = "idle";
+    combo.error = null;
+    combo.activeIndex = -1;
+    if (kind === "filter" && state.filters.patientId) {
+      state.filters.patientId = "";
+      state.isLoading = true;
+      render(root, state);
+      void load(root, state);
+      return;
+    }
+    syncPatientCombobox(root, state, kind);
+    return;
+  }
+
+  combo.status = "loading";
+  combo.options = [];
+  combo.error = null;
+  const requestId = combo.requestId + 1;
+  combo.requestId = requestId;
+  syncPatientCombobox(root, state, kind);
+
+  combo.debounceTimer = window.setTimeout(() => {
+    void loadPatientOptions(root, state, kind, trimmedQuery, requestId);
+  }, PATIENT_SEARCH_DEBOUNCE_MS);
+}
+
+async function loadPatientOptions(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+  query: string,
+  requestId: number,
+): Promise<void> {
+  const combo = state.patientComboboxes[kind];
+
+  try {
+    const response = await listPatients({
+      pageSize: PATIENT_SEARCH_PAGE_SIZE,
+      search: query,
+    });
+
+    if (combo.requestId !== requestId) {
+      return;
+    }
+
+    combo.options = response.data;
+    combo.status = "loaded";
+    combo.error = null;
+    combo.activeIndex = response.data.length > 0 ? 0 : -1;
+  } catch (error) {
+    if (combo.requestId !== requestId) {
+      return;
+    }
+    combo.options = [];
+    combo.status = "error";
+    combo.error =
+      error instanceof Error ? error.message : "No se pudieron cargar pacientes.";
+    combo.activeIndex = -1;
+  } finally {
+    if (combo.requestId === requestId) {
+      combo.debounceTimer = null;
+      combo.isOpen = true;
+      syncPatientCombobox(root, state, kind);
+    }
+  }
+}
+
+function selectPatientOption(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+  index: number,
+): void {
+  const combo = state.patientComboboxes[kind];
+  const selected = combo.options[index];
+  if (!selected) return;
+
+  combo.selected = selected;
+  combo.query = getCatalogItemLabel(selected);
+  combo.options = [selected];
+  combo.status = "loaded";
+  combo.error = null;
+  combo.isOpen = false;
+  combo.activeIndex = -1;
+
+  if (kind === "filter") {
+    state.filters.patientId = selected.id;
+    state.isLoading = true;
+    render(root, state);
+    void load(root, state);
+    return;
+  }
+
+  syncPatientCombobox(root, state, kind);
+}
+
+function clearPatientCombobox(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+): void {
+  resetPatientCombobox(state.patientComboboxes[kind]);
+
+  if (kind === "filter") {
+    state.filters.patientId = "";
+    state.isLoading = true;
+    render(root, state);
+    void load(root, state);
+    return;
+  }
+
+  syncPatientCombobox(root, state, kind);
+}
+
+function resetPatientCombobox(combo: PatientComboboxState): void {
+  if (combo.debounceTimer) {
+    window.clearTimeout(combo.debounceTimer);
+  }
+  combo.query = "";
+  combo.selected = null;
+  combo.options = [];
+  combo.status = "idle";
+  combo.error = null;
+  combo.isOpen = false;
+  combo.activeIndex = -1;
+  combo.debounceTimer = null;
+  combo.requestId += 1;
+}
+
+function syncPatientCombobox(
+  root: HTMLElement,
+  state: CalendarState,
+  kind: PatientComboboxKind,
+): void {
+  const combo = state.patientComboboxes[kind];
+  const wrapper = root.querySelector<HTMLElement>(
+    `[data-patient-combobox="${kind}"]`,
+  );
+  if (!wrapper) return;
+
+  const input = wrapper.querySelector<HTMLInputElement>(
+    `[data-patient-search="${kind}"]`,
+  );
+  const hidden = wrapper.querySelector<HTMLInputElement>(
+    `[data-patient-selected-id="${kind}"]`,
+  );
+  const clearButton = wrapper.querySelector<HTMLButtonElement>(
+    `[data-patient-clear="${kind}"]`,
+  );
+  const list = wrapper.querySelector<HTMLElement>(".calendar-combobox__list");
+  const listId = `calendar-${kind}-patient-options`;
+  const activeId =
+    combo.isOpen && combo.activeIndex >= 0
+      ? `${listId}-${combo.activeIndex}`
+      : "";
+
+  if (input && document.activeElement !== input) {
+    input.value = combo.query;
+  }
+  input?.setAttribute("aria-expanded", String(combo.isOpen));
+  if (activeId) {
+    input?.setAttribute("aria-activedescendant", activeId);
+  } else {
+    input?.removeAttribute("aria-activedescendant");
+  }
+  if (hidden) {
+    hidden.value = combo.selected?.id ?? "";
+  }
+  if (clearButton) {
+    clearButton.hidden = combo.query.length === 0;
+  }
+  if (list) {
+    list.classList.toggle("calendar-combobox__list--open", combo.isOpen);
+    list.innerHTML = renderPatientComboboxOptions(kind, combo, listId);
+  }
+}
+
+function parsePatientComboboxKind(
+  value: string | undefined,
+): PatientComboboxKind | null {
+  return value === "filter" || value === "form" ? value : null;
+}
+
 async function createAppointmentFromForm(
   root: HTMLElement,
   state: CalendarState,
   data: FormData,
 ): Promise<void> {
   try {
+    const patientId = String(data.get("patientId") ?? "").trim();
+    const startsAt = parseAppointmentDateTime(String(data.get("startsAt") ?? ""));
+    const endsAt = parseAppointmentDateTime(String(data.get("endsAt") ?? ""));
+
+    if (!patientId || state.patientComboboxes.form.selected?.id !== patientId) {
+      throw new Error("Selecciona un paciente valido de la lista.");
+    }
+
+    if (!startsAt || !endsAt) {
+      throw new Error("Selecciona horarios de inicio y fin validos.");
+    }
+
+    if (
+      !isMinuteStep(startsAt, APPOINTMENT_TIME_STEP_MINUTES) ||
+      !isMinuteStep(endsAt, APPOINTMENT_TIME_STEP_MINUTES)
+    ) {
+      throw new Error("Los horarios deben usar intervalos de 5 minutos.");
+    }
+
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
+    }
+
     state.isSaving = true;
     render(root, state);
     await createAppointment({
-      patientId: String(data.get("patientId")),
+      patientId,
       collaboratorId: String(data.get("collaboratorId")),
       clinicId: String(data.get("clinicId")),
       roomId: String(data.get("roomId")),
       appointmentTypeId: String(data.get("appointmentTypeId")),
-      startsAt: new Date(String(data.get("startsAt"))).toISOString(),
-      endsAt: new Date(String(data.get("endsAt"))).toISOString(),
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
       preSessionMinutes: Number(data.get("preSessionMinutes") ?? 0),
       postSessionMinutes: Number(data.get("postSessionMinutes") ?? 0),
     });
@@ -854,6 +1306,7 @@ async function createAppointmentFromForm(
     state.isSaving = false;
     state.showCreateForm = false;
     state.draftStartsAt = null;
+    resetPatientCombobox(state.patientComboboxes.form);
     render(root, state);
     await load(root, state);
   } catch (error) {
@@ -919,7 +1372,7 @@ function handleCalendarAction(
       return;
     case "clear-filters":
       state.filters = {
-        search: "",
+        patientId: "",
         clinicId: "",
         collaboratorId: "",
         roomId: "",
@@ -927,6 +1380,7 @@ function handleCalendarAction(
         appointmentStatus: "",
         attendanceStatus: "",
       };
+      resetPatientCombobox(state.patientComboboxes.filter);
       state.isLoading = true;
       render(root, state);
       void load(root, state);
@@ -950,17 +1404,25 @@ function updateFilter(
   value: string,
 ): void {
   state.filters[name] = value;
+  if (name === "patientId" && !value) {
+    resetPatientCombobox(state.patientComboboxes.filter);
+  }
   state.isLoading = true;
   render(root, state);
   void load(root, state);
 }
 
 function getFilteredCalendarAppointments(state: CalendarState): CalendarAppointment[] {
-  const search = state.filters.search.trim().toLowerCase();
-
   return toCalendarAppointments(state.appointments, state.attendance)
     .filter((item) => {
       const appointment = item.appointment;
+
+      if (
+        state.filters.patientId &&
+        appointment.patient.id !== state.filters.patientId
+      ) {
+        return false;
+      }
 
       if (state.filters.roomId && appointment.room.id !== state.filters.roomId) {
         return false;
@@ -971,23 +1433,6 @@ function getFilteredCalendarAppointments(state: CalendarState): CalendarAppointm
         appointment.appointmentType.id !== state.filters.appointmentTypeId
       ) {
         return false;
-      }
-
-      if (search) {
-        const haystack = [
-          appointment.patient.fullName,
-          appointment.collaborator.fullName,
-          appointment.clinic.name,
-          appointment.room.name,
-          appointment.appointmentType.name,
-          appointment.id,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!haystack.includes(search)) {
-          return false;
-        }
       }
 
       return true;
@@ -1032,7 +1477,41 @@ async function registerManualCheckIn(
 function findCatalogLabel(items: readonly CatalogItem[], id: string): string {
   if (!id) return "";
   const item = items.find((candidate) => candidate.id === id);
-  return item?.fullName ?? item?.name ?? id;
+  return item ? getCatalogItemLabel(item) : id;
+}
+
+function getPatientFilterLabel(state: CalendarState): string {
+  if (!state.filters.patientId) return "";
+  const selected = state.patientComboboxes.filter.selected;
+  return selected ? getCatalogItemLabel(selected) : state.filters.patientId;
+}
+
+function getCatalogItemLabel(item: CatalogItem): string {
+  return item.fullName ?? item.name ?? item.id;
+}
+
+function getPatientFolio(item: CatalogItem): string {
+  return item.folio ?? item.id;
+}
+
+function createPatientComboboxState(): PatientComboboxState {
+  return {
+    query: "",
+    selected: null,
+    options: [],
+    status: "idle",
+    error: null,
+    isOpen: false,
+    activeIndex: -1,
+    requestId: 0,
+    debounceTimer: null,
+  };
+}
+
+function parseAppointmentDateTime(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
 }
 
 function nextBusinessStart(): Date {

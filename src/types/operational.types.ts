@@ -2,6 +2,7 @@ export interface EntityRef {
   id: string;
   fullName?: string;
   name?: string;
+  folio?: string;
 }
 
 export type AppointmentStatus =
@@ -59,6 +60,7 @@ export interface CatalogItem {
   id: string;
   fullName?: string;
   name?: string;
+  folio?: string;
 }
 
 export interface MedicalNoteSummary {

@@ -161,3 +161,13 @@ export function clampAppointmentTop(date: Date): number {
 export function minutesBetween(start: Date, end: Date): number {
   return Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
 }
+
+export function isMinuteStep(date: Date, stepMinutes: number): boolean {
+  return (
+    Number.isFinite(date.getTime()) &&
+    stepMinutes > 0 &&
+    date.getMinutes() % stepMinutes === 0 &&
+    date.getSeconds() === 0 &&
+    date.getMilliseconds() === 0
+  );
+}
