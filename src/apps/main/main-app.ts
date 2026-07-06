@@ -15,6 +15,7 @@ import { isAuthenticated } from "../../guards/auth-guard";
 import { canAccessHandoffNotes } from "../../guards/role-guard";
 import { listHandoffNotes } from "../../services/main-api/handoff-notes";
 import type { UserRole } from "../../types/role.types";
+import { escapeHtml } from "../../utils/dom";
 import { mountDashboardPage } from "./pages/dashboard-page";
 
 import { authService } from "../../features/auth/services/auth.service";
@@ -68,6 +69,10 @@ export function mountMainApp(root: HTMLElement): void {
               : ""
           }
         </nav>
+        <div class="app-session-actions">
+          <span class="app-session-actions__label">${escapeHtml(session.user?.email ?? session.user?.fullName ?? formatRoleLabel(session.role))}</span>
+          <button id="main-logout-button" class="app-logout-button" type="button">Cerrar sesion</button>
+        </div>
       </aside>
       <section class="app-content ${activeKey === "calendar" ? "app-content--calendar" : ""}">
         <header class="app-header">
@@ -78,11 +83,6 @@ export function mountMainApp(root: HTMLElement): void {
           <span class="app-status">${formatRoleLabel(session.role)}</span>
         </header>
         <section id="main-view" aria-live="polite"></section>
-        ${
-          appConfig.authBypassEnabled
-            ? `<button id="logout-button" class="secondary-action mock-session-button" type="button">Clear mock session</button>`
-            : ""
-        }
       </section>
     </main>
   `;
@@ -105,14 +105,11 @@ export function mountMainApp(root: HTMLElement): void {
     });
   });
 
-  if (appConfig.authBypassEnabled) {
-    const logoutButton = root.querySelector<HTMLButtonElement>("#logout-button");
-
-    logoutButton?.addEventListener("click", () => {
-      sessionService.clearSession();
-      mountMainApp(root);
-    });
-  }
+  root.querySelector<HTMLButtonElement>("#main-logout-button")?.addEventListener("click", () => {
+    sessionService.clearSession();
+    window.location.hash = "";
+    mountMainApp(root);
+  });
 }
 
 function bindHashNavigation(root: HTMLElement): void {
@@ -262,6 +259,7 @@ function formatRoleLabel(role: string): string {
       return role;
   }
 }
+
 async function renderLogin(root: HTMLElement): Promise<void> {
   mountLoginPage(root, {
     showRoleSelector: appConfig.authBypassEnabled,

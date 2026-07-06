@@ -103,6 +103,34 @@ select {
   background: #ffffff;
 }
 
+.app-session-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.app-session-actions__label {
+  overflow: hidden;
+  color: #dce4ec;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-logout-button {
+  width: 100%;
+  border-color: rgba(255, 255, 255, 0.58);
+  color: #ffffff;
+  background: transparent;
+}
+
+.app-logout-button:hover {
+  border-color: #ffffff;
+  color: #17202a;
+  background: #ffffff;
+}
+
 .app-content {
   display: grid;
   align-content: start;

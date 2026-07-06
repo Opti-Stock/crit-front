@@ -1,6 +1,7 @@
 import { sessionService } from "../../features/auth/services/session.service";
 import { canAccessAdminEntry } from "../../guards/role-guard";
 import type { UserRole } from "../../types/role.types";
+import { escapeHtml } from "../../utils/dom";
 import {
   ADMIN_NAVIGATION_ITEMS,
   getAdminNavigationItem,
@@ -59,6 +60,10 @@ export function mountAdminApp(root: HTMLElement): void {
             return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-admin-nav-key="${item.key}">${item.label}</a>`;
           }).join("")}
         </nav>
+        <div class="app-session-actions">
+          <span class="app-session-actions__label">${escapeHtml(session.user?.email ?? session.user?.fullName ?? formatRoleLabel(session.role))}</span>
+          <button id="admin-logout-button" class="app-logout-button" type="button">Cerrar sesion</button>
+        </div>
       </aside>
 
       <section class="app-content">
@@ -84,6 +89,11 @@ export function mountAdminApp(root: HTMLElement): void {
     link.addEventListener("click", () => {
       window.setTimeout(() => mountAdminApp(root), 0);
     });
+  });
+
+  root.querySelector<HTMLButtonElement>("#admin-logout-button")?.addEventListener("click", () => {
+    sessionService.clearSession();
+    window.location.assign("/");
   });
 }
 
