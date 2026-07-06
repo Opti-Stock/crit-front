@@ -45,6 +45,10 @@ select {
   background: #27313b;
 }
 
+.app-shell--platform .app-sidebar {
+  background: #1f3430;
+}
+
 .app-brand {
   margin: 0;
   font-size: 1rem;
@@ -234,6 +238,12 @@ select {
 
 .form-grid {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
 }
 
 .form-panel input,

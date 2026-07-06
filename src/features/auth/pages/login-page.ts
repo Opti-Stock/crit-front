@@ -9,7 +9,6 @@ export function renderLoginPage(options: LoginPageOptions = {}): string {
     errorMessage = null,
     isSubmitting = false,
     availableRoles = USER_ROLES,
-    availableTenants = [],
     showRoleSelector = false,
   } = options;
 
@@ -24,25 +23,6 @@ export function renderLoginPage(options: LoginPageOptions = {}): string {
           </p>
         </header>
         <form id="login-form" class="auth-form" novalidate>
-          <div class="auth-form__field">
-            <label for="tenant">Tenant</label>
-
-            <select
-              id="tenant"
-              name="tenantCode"
-              required
-            >
-              ${availableTenants
-                .map(
-                  (tenant) => `
-                    <option value="${tenant.code}">
-                      ${escapeHtml(tenant.name)}
-                    </option>
-                  `,
-                )
-                .join("")}
-            </select>
-          </div>
           <div class="auth-form__field">
             <label for="email">Email</label>
             <input
@@ -132,7 +112,6 @@ export function mountLoginPage(
         ? "recepcion"
         : (String(formData.get("role")) as UserRole);
     const values: LoginFormValues = {
-      tenantCode: String(formData.get("tenantCode") ?? "").trim(),
       email: String(formData.get("email") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
       role: selectedRole,

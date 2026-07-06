@@ -15,7 +15,6 @@ import type { UserRole } from "../../types/role.types";
 import { mountDashboardPage } from "./pages/dashboard-page";
 
 import { authService } from "../../features/auth/services/auth.service";
-import { getAvailableTenants } from "../../features/auth/services/tenant.service";
 
 
 export function mountMainApp(root: HTMLElement): void {
@@ -158,10 +157,7 @@ function formatRoleLabel(role: string): string {
   }
 }
 async function renderLogin(root: HTMLElement): Promise<void> {
-  const tenants = await getAvailableTenants();
-
   mountLoginPage(root, {
-    availableTenants: tenants,
     showRoleSelector: appConfig.authBypassEnabled,
 
     onSubmit: async (values) => {
@@ -188,7 +184,6 @@ async function renderLogin(root: HTMLElement): Promise<void> {
         console.error(error);
 
         mountLoginPage(root, {
-          availableTenants: tenants,
           showRoleSelector: false,
           errorMessage: "Invalid credentials.",
           onSubmit: async (retryValues) => {

@@ -8,6 +8,7 @@ Este repositorio contiene la interfaz web desktop/responsive del sistema. El fro
 
 - `crit-api` para operación principal.
 - `crit-api/admin-api` para administración.
+- `crit-api/super-admin-api` para administración global multi-CRIT.
 
 ## Alcance del MVP
 
@@ -105,9 +106,16 @@ Crear un archivo `.env` basado en `.env.example`.
 ```env
 VITE_MAIN_API_URL=http://localhost:3000/api
 VITE_ADMIN_API_URL=http://localhost:3001/admin
+VITE_SUPER_ADMIN_API_URL=http://localhost:3003/super-admin
 VITE_APP_NAME=CRIT Assistance
 VITE_AUTH_BYPASS_ENABLED=true
 ```
+
+Entradas locales:
+
+- `index.html`: app operativa.
+- `admin.html`: admin por tenant.
+- `super-admin.html`: super admin global separado.
 
 ## Convención de ramas
 
