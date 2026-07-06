@@ -6,24 +6,18 @@ export interface EntityRef {
 
 export type AppointmentStatus =
   | "scheduled"
-  | "confirmed"
-  | "completed"
   | "cancelled"
   | "rescheduled";
 
 export type AttendanceStatus =
-  | "pending"
   | "present"
   | "absent"
-  | "late"
   | "cancelled"
   | "rescheduled";
 
 export const ATTENDANCE_STATUSES: readonly AttendanceStatus[] = [
-  "pending",
   "present",
   "absent",
-  "late",
   "cancelled",
   "rescheduled",
 ] as const;
