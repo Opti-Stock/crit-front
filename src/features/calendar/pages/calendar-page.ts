@@ -2,7 +2,8 @@ import {
   createAppointment,
   listAppointments,
 } from "../../../services/main-api/appointments";
-import { createAttendance, listAttendance } from "../../../services/main-api/attendance";
+import { listAttendance } from "../../../services/main-api/attendance";
+import { checkInAppointment } from "../../../services/checkin-api/appointments";
 import {
   listClinics,
   listCollaborators,
@@ -355,7 +356,6 @@ function renderSidebar(
               ${statusSelect("attendanceStatus", "Estado de asistencia", state.filters.attendanceStatus, [
                 ["present", "Asistencia"],
                 ["absent", "Inasistencia"],
-                ["cancelled", "Cancelada"],
                 ["rescheduled", "Reprogramada"],
               ])}
             `
@@ -667,7 +667,9 @@ function renderDetailPanel(
   const status = getCalendarStatusConfig(item.visualState);
   const canOperate = canCreateAppointments(role);
   const canManualCheckIn =
-    !item.attendance && (role === "medico" || role === "terapeuta");
+    !appointment.isCheckedIn &&
+    (role === "recepcion" || role === "coordinador" || role === "admin" || role === "direccion" || role === "medico" || role === "terapeuta");
+  const checkInLabel = appointment.isCheckedIn ? "Con check-in" : "Sin registro";
 
   return `
     <aside class="calendar-detail-panel" aria-label="Detalle de cita">
@@ -686,13 +688,13 @@ function renderDetailPanel(
         <div><dt>Cuarto</dt><dd>${escapeHtml(appointment.room.name)}</dd></div>
         <div><dt>Estado cita</dt><dd>${escapeHtml(appointment.status)}</dd></div>
         <div><dt>Asistencia</dt><dd><span class="calendar-status calendar-status--${status.tone}"><span aria-hidden="true"></span>${escapeHtml(status.label)}</span></dd></div>
-        <div><dt>Check-in</dt><dd>${escapeHtml(item.attendance?.checkedAt ? formatDateTime(item.attendance.checkedAt) : "Sin registro")}</dd></div>
+        <div><dt>Check-in</dt><dd>${escapeHtml(checkInLabel)}</dd></div>
       </dl>
       <div class="calendar-detail-panel__actions">
         ${
           canManualCheckIn
             ? `<button type="button" data-calendar-action="manual-checkin" data-checkin-appointment-id="${escapeHtml(appointment.id)}">Check-in manual</button>`
-            : `<button type="button" disabled>${item.attendance ? "Check-in registrado" : "Check-in manual no disponible"}</button>`
+            : `<button type="button" disabled>${appointment.isCheckedIn ? "Check-in registrado" : "Check-in manual no disponible"}</button>`
         }
         <button class="secondary-action" type="button" disabled>Check-in por gafete pendiente</button>
         <button class="secondary-action" type="button" disabled>${canOperate ? "Editar cuando API lo soporte" : "Sin permiso para editar"}</button>
@@ -1457,11 +1459,7 @@ async function registerManualCheckIn(
 
   try {
     state.isCheckingIn = true;
-    await createAttendance({
-      appointmentId,
-      status: "present",
-      notesRequired: false,
-    });
+    await checkInAppointment(appointmentId);
     state.selectedAppointmentId = appointmentId;
     state.isLoading = true;
     await load(root, state);

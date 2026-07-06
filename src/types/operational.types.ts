@@ -13,15 +13,15 @@ export type AppointmentStatus =
 export type AttendanceStatus =
   | "present"
   | "absent"
-  | "cancelled"
   | "rescheduled";
 
 export const ATTENDANCE_STATUSES: readonly AttendanceStatus[] = [
   "present",
   "absent",
-  "cancelled",
   "rescheduled",
 ] as const;
+
+export type CheckInStatus = "checked_in" | "not_checked_in";
 
 export interface AppointmentSummary {
   id: string;
@@ -35,6 +35,9 @@ export interface AppointmentSummary {
   preSessionMinutes: number;
   postSessionMinutes: number;
   status: AppointmentStatus;
+  attendanceStatus: AttendanceStatus | "pending" | null;
+  checkInStatus: CheckInStatus;
+  isCheckedIn: boolean;
 }
 
 export interface AttendanceSummary {

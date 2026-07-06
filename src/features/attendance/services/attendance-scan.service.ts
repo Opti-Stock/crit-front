@@ -8,5 +8,5 @@ export function buildTherapeuticAttendanceScanUrl(): string {
     mode: THERAPEUTIC_ATTENDANCE_SCAN_MODE,
   });
 
-  return `/apps/checkin/?${params.toString()}`;
+  return `/checkin.html?${params.toString()}`;
 }

@@ -92,7 +92,7 @@ function buildUrl(
 
   if (query) {
     for (const [key, value] of Object.entries(query)) {
-      if (value !== null && value !== undefined) {
+      if (value !== null && value !== undefined && value !== "") {
         url.searchParams.set(key, String(value));
       }
     }

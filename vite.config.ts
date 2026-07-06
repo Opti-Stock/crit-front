@@ -8,6 +8,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         admin: resolve(__dirname, "admin.html"),
         superAdmin: resolve(__dirname, "super-admin.html"),
+        checkin: resolve(__dirname, "checkin.html"),
       },
     },
   },

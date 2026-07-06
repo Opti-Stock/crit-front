@@ -20,6 +20,7 @@ interface LoginResponse {
     email: string;
     area?: string;
     roles: string[];
+    collaboratorId?: string | null;
   };
 }
 
@@ -46,6 +47,7 @@ class AuthService {
         fullName: response.user.fullName,
         email: response.user.email,
         area: response.user.area,
+        collaboratorId: response.user.collaboratorId ?? null,
       },
     };
   }

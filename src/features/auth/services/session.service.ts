@@ -48,6 +48,10 @@ export class SessionService {
             typeof parsedSession.user.area === "string"
               ? parsedSession.user.area
               : undefined,
+          collaboratorId:
+            typeof parsedSession.user.collaboratorId === "string"
+              ? parsedSession.user.collaboratorId
+              : null,
         };
       }
 
