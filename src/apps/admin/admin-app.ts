@@ -1,5 +1,6 @@
 import { mountLoginPage } from "../../features/auth/pages/login-page";
 import { authService } from "../../features/auth/services/auth.service";
+import { getMainNavigationForRole } from "../../features/auth/services/role-navigation.service";
 import { sessionService } from "../../features/auth/services/session.service";
 import { superAdminSessionService } from "../../features/super-admin/services/super-admin-session.service";
 import { canAccessAdminEntry } from "../../guards/role-guard";
@@ -41,10 +42,12 @@ export function mountAdminApp(root: HTMLElement): void {
   }
 
   if (!canAccessAdminEntry(session.role)) {
+    const mainAppHref = resolveMainAppHref(session.role);
+
     root.innerHTML = `
       <main class="app-shell app-shell--admin" aria-labelledby="admin-app-title">
         <aside class="app-sidebar" aria-label="Admin navigation">
-          <p class="app-brand">CRIT Admin</p>
+          ${renderAdminBrand(mainAppHref)}
           <nav class="app-nav">
             <span class="app-nav__item app-nav__item--active">Admin</span>
           </nav>
@@ -67,16 +70,18 @@ export function mountAdminApp(root: HTMLElement): void {
       </main>
     `;
 
+    bindAdminBackButton(root);
     return;
   }
 
   const activeKey = resolveAdminNavigationKey();
   const activeItem = getAdminNavigationItem(activeKey);
+  const mainAppHref = resolveMainAppHref(session.role);
 
   root.innerHTML = `
     <main class="app-shell app-shell--admin" aria-labelledby="admin-app-title">
       <aside class="app-sidebar" aria-label="Admin navigation">
-        <p class="app-brand">CRIT Admin</p>
+        ${renderAdminBrand(mainAppHref)}
         <nav class="app-nav">
           ${ADMIN_NAVIGATION_ITEMS.map((item) => {
             const activeClass =
@@ -110,6 +115,8 @@ export function mountAdminApp(root: HTMLElement): void {
     void mountAdminView(viewRoot, activeKey);
   }
 
+  bindAdminBackButton(root);
+
   root.querySelectorAll<HTMLAnchorElement>("[data-admin-nav-key]").forEach((link) => {
     link.addEventListener("click", () => {
       window.setTimeout(() => mountAdminApp(root), 0);
@@ -122,28 +129,60 @@ export function mountAdminApp(root: HTMLElement): void {
   });
 }
 
-  async function mountAdminView(
-    root: HTMLElement,
-    key: string,
-  ): Promise<void> {
-    switch (key) {
-      case "roles":
-        await mountRolesPage(root);
-        return;
+async function mountAdminView(
+  root: HTMLElement,
+  key: string,
+): Promise<void> {
+  switch (key) {
+    case "roles":
+      await mountRolesPage(root);
+      return;
 
-      case "clinics":
-        await mountClinicsPage(root);
-        return;
+    case "clinics":
+      await mountClinicsPage(root);
+      return;
 
-      case "rooms":
-        await mountRoomsPage(root);
-        return;
+    case "rooms":
+      await mountRoomsPage(root);
+      return;
 
-      case "users":
-      default:
-        await mountUsersPage(root);
-    }
+    case "users":
+    default:
+      await mountUsersPage(root);
   }
+}
+
+function renderAdminBrand(href: string): string {
+  return `
+    <div class="sidebar-brand">
+      <button
+        type="button"
+        class="sidebar-back-button"
+        aria-label="Volver a la aplicación"
+        title="Volver a la aplicación"
+        data-admin-main-app-href="${escapeHtml(href)}"
+      >
+        <span aria-hidden="true">←</span>
+      </button>
+      <span class="sidebar-brand-title">CRIT Assistance</span>
+    </div>
+  `;
+}
+
+function bindAdminBackButton(root: HTMLElement): void {
+  root
+    .querySelector<HTMLButtonElement>("[data-admin-main-app-href]")
+    ?.addEventListener("click", (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const href = button.dataset.adminMainAppHref ?? "/";
+      window.location.assign(href);
+    });
+}
+
+function resolveMainAppHref(role: UserRole): string {
+  const [mainEntry] = getMainNavigationForRole(role);
+  return mainEntry ? `/#${mainEntry.key}` : "/";
+}
 
 function formatRoleLabel(role: UserRole): string {
   switch (role) {
