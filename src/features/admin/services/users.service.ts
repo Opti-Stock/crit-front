@@ -3,6 +3,14 @@ import { adminApiClient } from "../../../services/admin-api/client";
 import { mockUsers } from "../mocks/users.mock";
 import { UserDto } from "../types/user.types";
 
+export interface CreateUserInput {
+  fullName: string;
+  email: string;
+  password: string;
+  roleIds: string[];
+  clinicAccess: { clinicId: string; accessLevel: "standard" | "manage" }[];
+}
+
 class UsersService {
   async getAll(): Promise<readonly UserDto[]> {
 
@@ -45,6 +53,29 @@ class UsersService {
     return adminApiClient.request<readonly UserDto[]>(
       "/users",
     );
+  }
+
+  async create(input: CreateUserInput): Promise<UserDto> {
+    if (appConfig.adminMocksEnabled) {
+      return {
+        id: crypto.randomUUID(),
+        fullName: input.fullName,
+        email: input.email,
+        status: "active",
+        roles: input.roleIds.map((roleId) => ({ id: roleId, name: roleId })),
+      };
+    }
+
+    return adminApiClient.request<UserDto>("/users", {
+      method: "POST",
+      body: {
+        fullName: input.fullName,
+        email: input.email,
+        password: input.password,
+        roleIds: input.roleIds,
+        clinicAccess: input.clinicAccess,
+      },
+    });
   }
 }
 

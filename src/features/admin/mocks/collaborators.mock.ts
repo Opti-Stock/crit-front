@@ -3,14 +3,20 @@ import type { CollaboratorDto } from "../types/collaborator.types";
 export const mockCollaborators: readonly CollaboratorDto[] = [
   {
     id: "1",
-    fullName: "María López",
+    userId: "2",
+    fullName: "Maria Lopez",
     email: "maria@crit.org",
-    active: true,
+    specialty: "Terapia fisica",
+    status: "active",
+    clinicIds: ["1"],
   },
   {
     id: "2",
-    fullName: "Carlos Hernández",
+    userId: "3",
+    fullName: "Carlos Hernandez",
     email: "carlos@crit.org",
-    active: false,
+    specialty: "Medicina",
+    status: "inactive",
+    clinicIds: ["2"],
   },
 ];
