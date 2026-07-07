@@ -107,6 +107,56 @@ select {
   background: #ffffff;
 }
 
+.app-shell--admin .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-shell--admin .sidebar-back-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.app-shell--admin .sidebar-back-button:hover {
+  border-color: #ffffff;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.app-shell--admin .sidebar-back-button:active {
+  transform: translateY(1px);
+  background: #dce4ec;
+}
+
+.app-shell--admin .sidebar-back-button:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.app-shell--admin .sidebar-brand-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-session-actions {
   display: grid;
   gap: 8px;
