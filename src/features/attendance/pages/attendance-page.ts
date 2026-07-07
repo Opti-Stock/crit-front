@@ -61,6 +61,7 @@ interface AttendanceState {
   realtimeStatus: AttendanceRealtimeStatus;
   realtimeMessage: string | null;
   currentUserId: string | null;
+  currentCollaboratorId: string | null;
   currentUserArea: string | null;
 }
 
@@ -104,6 +105,7 @@ export function mountAttendancePage(root: HTMLElement, role: UserRole): void {
     realtimeStatus: "unavailable",
     realtimeMessage: null,
     currentUserId: session?.user?.id ?? null,
+    currentCollaboratorId: session?.user?.collaboratorId ?? null,
     currentUserArea: session?.user?.area ?? null,
   };
 
@@ -133,10 +135,10 @@ async function load(
 ): Promise<void> {
   state.isLoading = true;
 
-  if (isClinicalAttendanceRole(role) && !state.currentUserId) {
+  if (isClinicalAttendanceRole(role) && !state.currentCollaboratorId) {
     state.rows = [];
     state.message =
-      "Sin permisos: la sesion debe incluir user.id para mostrar solo pacientes asignados.";
+      "Sin permisos: la sesion debe incluir collaboratorId para mostrar solo pacientes asignados.";
     state.isLoading = false;
     render(root, state, role);
     return;
@@ -145,25 +147,25 @@ async function load(
   const range = dayRange(state.selectedDate);
   const collaboratorId =
     isClinicalAttendanceRole(role)
-      ? sessionService.getSession()?.user?.collaboratorId ?? undefined
+      ? state.currentCollaboratorId ?? undefined
       : undefined;
 
   try {
     const [appointments, attendance, notes] = await Promise.all([
       listAppointments({
-        pageSize: 150,
+        pageSize: 100,
         from: range.from,
         to: range.to,
         collaboratorId,
       }),
       listAttendance({
-        pageSize: 150,
+        pageSize: 100,
         from: range.from,
         to: range.to,
         collaboratorId,
       }),
       listMedicalNotes({
-        pageSize: 150,
+        pageSize: 100,
         collaboratorId,
       }),
     ]);
@@ -647,8 +649,8 @@ function isRowVisibleForRole(
   state: AttendanceState,
   role: UserRole,
 ): boolean {
-  if (isClinicalAttendanceRole(role) && state.currentUserId) {
-    return row.appointment.collaborator.id === state.currentUserId;
+  if (isClinicalAttendanceRole(role) && state.currentCollaboratorId) {
+    return row.appointment.collaborator.id === state.currentCollaboratorId;
   }
 
   if (role === "coordinador" && state.currentUserArea) {
@@ -665,9 +667,9 @@ function canRegisterClinicalAttendance(
 ): boolean {
   if (!isClinicalAttendanceRole(role)) return false;
   if (row.medicalNote) return false;
-  if (!state.currentUserId) return false;
+  if (!state.currentCollaboratorId) return false;
 
-  return row.appointment.collaborator.id === state.currentUserId;
+  return row.appointment.collaborator.id === state.currentCollaboratorId;
 }
 
 function canWriteMedicalNote(row: AttendanceViewModel, role: UserRole): boolean {
@@ -724,8 +726,8 @@ function matchesArea(appointment: AppointmentSummary, area: string): boolean {
 }
 
 function buildScopeMessage(state: AttendanceState, role: UserRole): string | null {
-  if (isClinicalAttendanceRole(role) && !state.currentUserId) {
-    return "La sesion actual no incluye user.id; el filtro de terapeuta depende del backend.";
+  if (isClinicalAttendanceRole(role) && !state.currentCollaboratorId) {
+    return "La sesion actual no incluye collaboratorId; el filtro de terapeuta depende del backend.";
   }
 
   if (role === "coordinador" && !state.currentUserArea) {

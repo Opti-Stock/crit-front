@@ -140,8 +140,8 @@ async function load(
   try {
     const [notes, patients, appointments] = await Promise.all([
       listHandoffNotes({ pageSize: 100 }),
-      listPatients({ pageSize: 200 }),
-      listAppointments({ pageSize: 200 }),
+      listPatients({ pageSize: 100 }),
+      listAppointments({ pageSize: 100 }),
     ]);
 
     const mergedPatients = mergePatients(
@@ -709,6 +709,8 @@ function isUnreadForCurrentUser(
     if (currentRecipient) {
       return !currentRecipient.readAt;
     }
+
+    return false;
   }
 
   return note.status === "pending";
