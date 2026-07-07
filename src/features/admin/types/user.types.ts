@@ -4,4 +4,5 @@ export interface UserDto {
   email: string;
   status: "active" | "inactive";
   roles: { id: string; name: string }[];
+  clinicAccess?: { clinicId: string; clinicName: string; accessLevel: "standard" | "manage" }[];
 }

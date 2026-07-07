@@ -21,6 +21,15 @@ export interface ClinicSummary {
   capacity?: number | null;
 }
 
+export interface RoomSummary {
+  id: string;
+  clinicId: string;
+  clinicName?: string;
+  name: string;
+  capacity?: number | null;
+  status: "active" | "inactive";
+}
+
 export interface CollaboratorSummary {
   id: string;
   userId: string;
