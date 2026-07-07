@@ -31,8 +31,6 @@ interface HandoffFilters {
   createdDate: string;
   area: string;
   category: HandoffCategory | "";
-  authorQuery: string;
-  relatedOnly: boolean;
 }
 
 interface HandoffState {
@@ -100,8 +98,6 @@ export function mountHandoffNotesPage(root: HTMLElement, role: UserRole): void {
       createdDate: "",
       area: "",
       category: "",
-      authorQuery: "",
-      relatedOnly: true,
     },
   };
 
@@ -214,7 +210,6 @@ function render(root: HTMLElement, state: HandoffState, role: UserRole): void {
       <div class="handoff-shell">
         <aside class="handoff-sidebar">
           ${renderFilters(state, role)}
-          ${renderPatientList(state, role)}
         </aside>
         <section class="handoff-main" aria-live="polite">
           ${renderConversation(state, role)}
@@ -260,10 +255,7 @@ function renderFilters(state: HandoffState, role: UserRole): string {
       <form class="handoff-filter-form" data-handoff-filter-form>
         <label>
           Paciente
-          <input name="patientQuery" list="handoff-patient-options" value="${escapeHtml(filters.patientQuery)}" placeholder="Escribe para buscar paciente" />
-          <datalist id="handoff-patient-options">
-            ${renderHandoffPatientOptions(state, role)}
-          </datalist>
+          <input name="patientQuery" value="${escapeHtml(filters.patientQuery)}" placeholder="Escribe para buscar paciente" autocomplete="off" data-handoff-patient-search />
         </label>
         <label>
           Lectura
@@ -298,21 +290,6 @@ function renderFilters(state: HandoffState, role: UserRole): string {
             `).join("")}
           </select>
         </label>
-        <label>
-          Autor
-          <input name="authorQuery" value="${escapeHtml(filters.authorQuery)}" placeholder="Nombre, rol o area" />
-        </label>
-        ${
-          isApRole(role)
-            ? ""
-            : `<label>
-                Pacientes
-                <select name="patientScope">
-                  <option value="related" ${filters.relatedOnly ? "selected" : ""}>Asignados o relacionados</option>
-                  <option value="all" ${filters.relatedOnly ? "" : "selected"}>Todos visibles</option>
-                </select>
-              </label>`
-        }
         <div class="button-row handoff-filter-form__actions">
           <button type="submit">Aplicar</button>
           <button type="button" class="secondary-action" data-reset-handoff-filters>Limpiar</button>
@@ -354,21 +331,33 @@ function renderPatientList(state: HandoffState, role: UserRole): string {
   `;
 }
 
-function renderHandoffPatientOptions(state: HandoffState, role: UserRole): string {
-  return getAllowedPatientsForNewNote(state, role)
-    .map((patient) => getPatientName(patient))
-    .sort((left, right) => left.localeCompare(right, "es-MX"))
-    .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
-    .join("");
-}
-
 function renderConversation(state: HandoffState, role: UserRole): string {
   if (state.isLoading) {
     return `<p class="empty-state">Cargando historial...</p>`;
   }
 
+  if (!state.selectedPatientId && state.filters.patientQuery.trim()) {
+    return renderPatientList(state, role);
+  }
+
   if (!state.selectedPatientId) {
-    return `<p class="empty-state">Selecciona un paciente para ver el historial de notas de enlace.</p>`;
+    const notes = getFilteredNotes(state, role);
+    if (notes.length === 0) {
+      return `<p class="empty-state">No hay notas de enlace visibles para los filtros actuales.</p>`;
+    }
+
+    return `
+      <div class="handoff-conversation">
+        <div class="handoff-conversation__header">
+          <div>
+            <p class="app-eyebrow">Todas las notas permitidas</p>
+            <h3>Historial de enlace</h3>
+          </div>
+          <span class="status-pill">${notes.length} notas</span>
+        </div>
+        <div class="handoff-thread" data-handoff-thread>${notes.map((note) => renderNote(note, state, role)).join("")}</div>
+      </div>
+    `;
   }
 
   const patient = findPatient(state, state.selectedPatientId);
@@ -484,8 +473,47 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
       event.preventDefault();
       const data = new FormData(event.currentTarget as HTMLFormElement);
       state.filters = readFilters(data, role);
+      if (state.selectedPatientId && state.filters.patientQuery.trim()) {
+        const selected = findPatient(state, state.selectedPatientId);
+        if (selected && !normalizeText(getPatientName(selected)).includes(normalizeText(state.filters.patientQuery))) {
+          state.selectedPatientId = "";
+          state.focusedNoteId = "";
+        }
+      }
       render(root, state, role);
       scheduleScrollToNote(root, state);
+    },
+  );
+
+  root.querySelector<HTMLFormElement>("[data-handoff-filter-form]")?.addEventListener(
+    "input",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+        return;
+      }
+      const form = target.form;
+      if (!form) return;
+      state.filters = readFilters(new FormData(form), role);
+      if (target.matches("[data-handoff-patient-search]")) {
+        state.selectedPatientId = "";
+        state.focusedNoteId = "";
+      }
+      render(root, state, role);
+    },
+  );
+
+  root.querySelector<HTMLFormElement>("[data-handoff-filter-form]")?.addEventListener(
+    "change",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+        return;
+      }
+      const form = target.form;
+      if (!form) return;
+      state.filters = readFilters(new FormData(form), role);
+      render(root, state, role);
     },
   );
 
@@ -497,10 +525,8 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
         unreadOnly: false,
         createdDate: "",
         area: "",
-        category: "",
-        authorQuery: "",
-        relatedOnly: true,
-      };
+      category: "",
+    };
       render(root, state, role);
       scheduleScrollToNote(root, state);
     },
@@ -641,10 +667,6 @@ function readFilters(data: FormData, role: UserRole): HandoffFilters {
     createdDate: String(data.get("createdDate") ?? "").trim(),
     area: String(data.get("area") ?? "").trim(),
     category: String(data.get("category") ?? "") as HandoffCategory | "",
-    authorQuery: String(data.get("authorQuery") ?? "").trim(),
-    relatedOnly: isApRole(role)
-      ? true
-      : String(data.get("patientScope") ?? "related") !== "all",
   };
 }
 
@@ -676,9 +698,7 @@ function validateNewNote(
 
 function getVisiblePatients(state: HandoffState, role: UserRole): CatalogItem[] {
   const query = normalizeText(state.filters.patientQuery);
-  const allowedPatients = state.filters.relatedOnly || isApRole(role)
-    ? getAllowedPatientsForNewNote(state, role)
-    : state.patients;
+  const allowedPatients = isApRole(role) ? getAllowedPatientsForNewNote(state, role) : state.patients;
   const filteredPatientIds = hasNoteScopedFilters(state)
     ? new Set(getFilteredNotes(state, role).map((note) => note.patient.id))
     : null;
@@ -738,15 +758,6 @@ function getFilteredNotes(
       return false;
     }
 
-    if (
-      state.filters.authorQuery &&
-      !getAuthorSearchText(note, state, role).includes(
-        normalizeText(state.filters.authorQuery),
-      )
-    ) {
-      return false;
-    }
-
     return true;
   });
 }
@@ -756,26 +767,7 @@ function hasNoteScopedFilters(state: HandoffState): boolean {
     state.filters.unreadOnly ||
       state.filters.createdDate ||
       state.filters.area ||
-      state.filters.category ||
-      state.filters.authorQuery,
-  );
-}
-
-function getAuthorSearchText(
-  note: HandoffNoteSummary,
-  state: HandoffState,
-  role: UserRole,
-): string {
-  return normalizeText(
-    [
-      note.createdBy.fullName,
-      note.createdBy.id,
-      note.createdBy.role,
-      isOwnNote(note, state) ? role : "",
-      getNoteArea(note, state),
-    ]
-      .filter(Boolean)
-      .join(" "),
+      state.filters.category,
   );
 }
 

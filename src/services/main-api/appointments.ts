@@ -25,6 +25,19 @@ export interface CreateAppointmentInput {
   postSessionMinutes: number;
 }
 
+export interface UpdateAppointmentInput {
+  patientId?: string;
+  collaboratorId?: string;
+  clinicId?: string;
+  roomId?: string;
+  appointmentTypeId?: string;
+  startsAt?: string;
+  endsAt?: string;
+  preSessionMinutes?: number;
+  postSessionMinutes?: number;
+  status?: "scheduled" | "cancelled" | "rescheduled";
+}
+
 export function listAppointments(query: ListAppointmentsQuery = {}) {
   return mainApiClient.requestWithMeta<AppointmentSummary[], PaginationMeta>(
     "/appointments",
@@ -37,4 +50,14 @@ export function createAppointment(input: CreateAppointmentInput) {
     method: "POST",
     body: { ...input },
   });
+}
+
+export function updateAppointment(appointmentId: string, input: UpdateAppointmentInput) {
+  return mainApiClient.request<AppointmentSummary>(
+    `/appointments/${encodeURIComponent(appointmentId)}`,
+    {
+      method: "PATCH",
+      body: { ...input },
+    },
+  );
 }

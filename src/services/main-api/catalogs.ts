@@ -8,6 +8,7 @@ interface ListCatalogQuery {
   search?: string;
   status?: string;
   clinicId?: string;
+  role?: "medico" | "terapeuta";
 }
 
 function listCatalog(path: string, query: ListCatalogQuery = {}) {

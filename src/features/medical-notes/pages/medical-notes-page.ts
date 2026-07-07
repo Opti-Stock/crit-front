@@ -7,6 +7,7 @@ import type { AppointmentSummary, MedicalNoteSummary } from "../../../types/oper
 import { escapeHtml, formatDateTime, todayRange } from "../../../utils/dom";
 import type { UserRole } from "../../../types/role.types";
 import { sessionService } from "../../auth/services/session.service";
+import { canWriteMedicalNotes } from "../../../guards/role-guard";
 
 interface MedicalNotesState {
   appointments: AppointmentSummary[];
@@ -19,11 +20,6 @@ interface MedicalNotesState {
 }
 
 export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
-  if (role !== "medico" && role !== "terapeuta") {
-    root.innerHTML = `<p class="inline-alert">No tienes acceso a notas medicas.</p>`;
-    return;
-  }
-
   const session = sessionService.getSession();
   const state: MedicalNotesState = {
     appointments: [],
@@ -34,17 +30,21 @@ export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
     isLoading: true,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
   };
-  render(root, state);
-  void load(root, state);
+  render(root, state, role);
+  void load(root, state, role);
 }
 
-async function load(root: HTMLElement, state: MedicalNotesState): Promise<void> {
+async function load(root: HTMLElement, state: MedicalNotesState, role?: UserRole): Promise<void> {
   try {
     const range = todayRange();
     const collaboratorId = state.currentCollaboratorId ?? undefined;
     const [appointments, notes] = await Promise.all([
       listAppointments({ pageSize: 100, from: range.from, to: range.to }),
-      listMedicalNotes({ pageSize: 100, collaboratorId }),
+      listMedicalNotes({
+        pageSize: 100,
+        collaboratorId: canWriteMedicalNotes(role ?? "admin") ? collaboratorId : undefined,
+        patientId: state.selectedPatientId || undefined,
+      }),
     ]);
     state.appointments = appointments.data;
     state.notes = notes.data;
@@ -54,11 +54,11 @@ async function load(root: HTMLElement, state: MedicalNotesState): Promise<void> 
     state.message = error instanceof Error ? error.message : "No se pudieron cargar notas.";
   } finally {
     state.isLoading = false;
-    render(root, state);
+    render(root, state, role ?? "admin");
   }
 }
 
-function render(root: HTMLElement, state: MedicalNotesState): void {
+function render(root: HTMLElement, state: MedicalNotesState, role: UserRole): void {
   root.innerHTML = `
     <section class="feature-page">
       <header class="feature-header">
@@ -71,14 +71,14 @@ function render(root: HTMLElement, state: MedicalNotesState): void {
       ${
         state.isLoading
           ? `<p class="empty-state">Cargando notas...</p>`
-          : renderMedicalNotesChat(state)
+          : renderMedicalNotesChat(state, role)
       }
     </section>
   `;
-  bindEvents(root, state);
+  bindEvents(root, state, role);
 }
 
-function renderMedicalNotesChat(state: MedicalNotesState): string {
+function renderMedicalNotesChat(state: MedicalNotesState, role: UserRole): string {
   const allPatients = getPatients(state);
   const patients = getFilteredPatients(state, allPatients);
 
@@ -132,7 +132,7 @@ function renderMedicalNotesChat(state: MedicalNotesState): string {
             </div>
             <span class="status-pill">${patientNotes.length} notas</span>
           </div>
-          ${renderForm(patientAppointments)}
+          ${canWriteMedicalNotes(role) ? renderForm(patientAppointments) : `<p class="hint-text">Vista de solo lectura para este rol.</p>`}
           ${
             patientNotes.length === 0
               ? `<p class="empty-state">Sin notas medicas para este paciente.</p>`
@@ -209,7 +209,7 @@ function renderMedicalNoteBubble(note: MedicalNoteSummary): string {
   `;
 }
 
-function bindEvents(root: HTMLElement, state: MedicalNotesState): void {
+function bindEvents(root: HTMLElement, state: MedicalNotesState, role: UserRole): void {
   root.querySelector<HTMLFormElement>("[data-medical-note-form]")?.addEventListener(
     "submit",
     (event) => {
@@ -220,7 +220,7 @@ function bindEvents(root: HTMLElement, state: MedicalNotesState): void {
         appointmentId: String(data.get("appointmentId") ?? ""),
         summary: String(data.get("summary") ?? ""),
         instructions: String(data.get("instructions") ?? ""),
-      });
+      }, role);
     },
   );
 
@@ -231,7 +231,7 @@ function bindEvents(root: HTMLElement, state: MedicalNotesState): void {
         if (!patientId) return;
 
         state.selectedPatientId = patientId;
-        render(root, state);
+        render(root, state, role);
       });
     },
   );
@@ -240,7 +240,7 @@ function bindEvents(root: HTMLElement, state: MedicalNotesState): void {
     "input",
     (event) => {
       state.patientQuery = (event.currentTarget as HTMLInputElement).value;
-      render(root, state);
+      render(root, state, role);
     },
   );
 
@@ -253,10 +253,11 @@ async function createNote(
   root: HTMLElement,
   state: MedicalNotesState,
   values: { appointmentId: string; summary: string; instructions: string },
+  role: UserRole,
 ): Promise<void> {
   if (!values.appointmentId || !values.summary.trim()) {
     state.message = "Selecciona una cita y captura el resumen.";
-    render(root, state);
+    render(root, state, role);
     return;
   }
   try {
@@ -269,11 +270,11 @@ async function createNote(
       formatVersion: "1.0",
     });
     state.isLoading = true;
-    render(root, state);
-    await load(root, state);
+    render(root, state, role);
+    await load(root, state, role);
   } catch (error) {
     state.message = error instanceof Error ? error.message : "No se pudo guardar la nota.";
-    render(root, state);
+    render(root, state, role);
   }
 }
 

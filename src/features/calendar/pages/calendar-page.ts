@@ -1,6 +1,7 @@
 import {
   createAppointment,
   listAppointments,
+  updateAppointment,
 } from "../../../services/main-api/appointments";
 import { listAttendance } from "../../../services/main-api/attendance";
 import { checkInAppointment } from "../../../services/checkin-api/appointments";
@@ -45,6 +46,7 @@ import {
   CalendarVisualState,
   getCalendarStatusConfig,
 } from "../config/calendar-status.config";
+import { canWriteAppointments } from "../../../guards/role-guard";
 
 const CALENDAR_VIEW_LABELS: Record<CalendarViewMode, string> = {
   day: "Día",
@@ -59,13 +61,6 @@ const CALENDAR_VIEW_OPTIONS: readonly CalendarViewMode[] = [
   "work-week",
   "month",
   "agenda",
-];
-
-const CREATE_APPOINTMENT_ROLES: readonly UserRole[] = [
-  "admin",
-  "direccion",
-  "recepcion",
-  "coordinador",
 ];
 
 const PIXELS_PER_MINUTE = 1.2;
@@ -186,14 +181,14 @@ async function load(root: HTMLElement, state: CalendarState): Promise<void> {
             | AttendanceStatus
             | undefined,
         }),
-        listCollaborators({ pageSize: 100 }),
+        listCollaborators({ pageSize: 100, status: "active" }),
         listClinics({ pageSize: 100 }),
         listRooms({ pageSize: 100 }),
         listAppointmentTypes(),
     ]);
     state.appointments = appointments.data;
     state.attendance = attendance.data;
-    state.collaborators = collaborators.data;
+    state.collaborators = collaborators.data.filter(isClinicalProfessional);
     state.clinics = clinics.data;
     state.rooms = rooms.data;
     state.appointmentTypes = appointmentTypes;
@@ -696,9 +691,14 @@ function renderDetailPanel(
             ? `<button type="button" data-calendar-action="manual-checkin" data-checkin-appointment-id="${escapeHtml(appointment.id)}">Check-in manual</button>`
             : `<button type="button" disabled>${appointment.isCheckedIn ? "Check-in registrado" : "Check-in manual no disponible"}</button>`
         }
-        <button class="secondary-action" type="button" disabled>Check-in por gafete pendiente</button>
-        <button class="secondary-action" type="button" disabled>${canOperate ? "Editar cuando API lo soporte" : "Sin permiso para editar"}</button>
-        <button class="secondary-action" type="button" disabled>Reprogramar pendiente</button>
+        ${
+          canOperate
+            ? `
+              <button class="secondary-action" type="button" data-calendar-action="reschedule-appointment" data-appointment-state-id="${escapeHtml(appointment.id)}">Marcar reagendada</button>
+              <button class="secondary-action" type="button" data-calendar-action="cancel-appointment" data-appointment-state-id="${escapeHtml(appointment.id)}">Cancelar cita</button>
+            `
+            : `<button class="secondary-action" type="button" disabled>Vista de solo lectura</button>`
+        }
       </div>
       <p class="hint-text">Este panel no muestra diagnosticos ni notas clinicas.</p>
     </aside>
@@ -1394,6 +1394,12 @@ function handleCalendarAction(
     case "manual-checkin":
       void registerManualCheckIn(root, state, source?.dataset.checkinAppointmentId);
       return;
+    case "reschedule-appointment":
+      void updateAppointmentStatus(root, state, source?.dataset.appointmentStateId, "rescheduled");
+      return;
+    case "cancel-appointment":
+      void updateAppointmentStatus(root, state, source?.dataset.appointmentStateId, "cancelled");
+      return;
     default:
       return;
   }
@@ -1447,7 +1453,12 @@ function getFilteredCalendarAppointments(state: CalendarState): CalendarAppointm
 }
 
 function canCreateAppointments(role: UserRole): boolean {
-  return CREATE_APPOINTMENT_ROLES.includes(role);
+  return canWriteAppointments(role);
+}
+
+function isClinicalProfessional(item: CatalogItem): boolean {
+  const roles = item.roles ?? [];
+  return roles.includes("medico") || roles.includes("terapeuta");
 }
 
 async function registerManualCheckIn(
@@ -1469,6 +1480,34 @@ async function registerManualCheckIn(
     render(root, state);
   } finally {
     state.isCheckingIn = false;
+  }
+}
+
+async function updateAppointmentStatus(
+  root: HTMLElement,
+  state: CalendarState,
+  appointmentId: string | undefined,
+  status: "cancelled" | "rescheduled",
+): Promise<void> {
+  if (!appointmentId) return;
+  if (!canCreateAppointments(state.role)) {
+    state.message = "Tu rol no tiene permisos para modificar citas.";
+    render(root, state);
+    return;
+  }
+
+  try {
+    state.isSaving = true;
+    await updateAppointment(appointmentId, { status });
+    state.selectedAppointmentId = appointmentId;
+    state.isLoading = true;
+    await load(root, state);
+  } catch (error) {
+    state.message =
+      error instanceof Error ? error.message : "No se pudo actualizar la cita.";
+    render(root, state);
+  } finally {
+    state.isSaving = false;
   }
 }
 

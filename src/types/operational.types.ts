@@ -64,6 +64,7 @@ export interface CatalogItem {
   fullName?: string;
   name?: string;
   folio?: string;
+  roles?: string[];
 }
 
 export interface MedicalNoteSummary {

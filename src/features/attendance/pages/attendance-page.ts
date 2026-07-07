@@ -1,4 +1,8 @@
-import { createAttendance, listAttendance } from "../../../services/main-api/attendance";
+import {
+  createAttendance,
+  listAttendance,
+  updateAttendanceStatus,
+} from "../../../services/main-api/attendance";
 import { listAppointments } from "../../../services/main-api/appointments";
 import {
   createMedicalNote,
@@ -496,9 +500,31 @@ async function registerAttendanceStatus(
   }
 
   if (row.attendance) {
-    state.message =
-      "La actualizacion de asistencias existentes requiere PATCH en crit-api.";
-    render(root, state, role);
+    try {
+      state.isSaving = true;
+      render(root, state, role);
+      const attendance = await updateAttendanceStatus(row.attendance.id, {
+        status,
+        notesRequired: true,
+      });
+
+      state.rows = state.rows.map((candidate) =>
+        candidate.appointment.id === appointmentId
+          ? { ...candidate, attendance }
+          : candidate,
+      );
+      state.activeNote = {
+        appointmentId,
+        attendanceRecordId: attendance.id,
+        status,
+      };
+      state.message = "Asistencia actualizada.";
+    } catch (error) {
+      state.message = getErrorMessage(error);
+    } finally {
+      state.isSaving = false;
+      render(root, state, role);
+    }
     return;
   }
 
@@ -561,7 +587,6 @@ async function saveQuickMedicalNote(
         incidents: String(data.get("incidents") ?? "").trim(),
         followUp: String(data.get("followUp") ?? "").trim(),
         attendanceRecordId: state.activeNote.attendanceRecordId,
-        attendanceStatus: state.activeNote.status,
         patientId: row.appointment.patient.id,
         patientName: row.appointment.patient.fullName,
         collaboratorId: row.appointment.collaborator.id,
