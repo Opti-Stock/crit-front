@@ -247,7 +247,10 @@ function renderFilters(state: HandoffState): string {
       <form class="handoff-filter-form" data-handoff-filter-form>
         <label>
           Paciente
-          <input name="patientQuery" value="${escapeHtml(filters.patientQuery)}" placeholder="Nombre o folio" />
+          <input name="patientQuery" list="handoff-patient-options" value="${escapeHtml(filters.patientQuery)}" placeholder="Escribe para buscar paciente" />
+          <datalist id="handoff-patient-options">
+            ${renderHandoffPatientOptions(state)}
+          </datalist>
         </label>
         <label>
           Lectura
@@ -324,6 +327,14 @@ function renderPatientList(state: HandoffState): string {
       }).join("")}
     </div>
   `;
+}
+
+function renderHandoffPatientOptions(state: HandoffState): string {
+  return getAllowedPatientsForNewNote(state)
+    .map((patient) => getPatientName(patient))
+    .sort((left, right) => left.localeCompare(right, "es-MX"))
+    .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
+    .join("");
 }
 
 function renderConversation(state: HandoffState, role: UserRole): string {

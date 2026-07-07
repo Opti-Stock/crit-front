@@ -250,7 +250,10 @@ function renderToolbar(state: AttendanceState, role: UserRole): string {
     <section class="attendance-toolbar" aria-label="Filtros de asistencias">
       <label>
         Buscar paciente o folio
-        <input name="search" type="search" value="${escapeHtml(state.search)}" placeholder="Nombre, folio, terapia..." data-attendance-search />
+        <input name="search" type="search" list="attendance-patient-options" value="${escapeHtml(state.search)}" placeholder="Escribe para buscar paciente..." data-attendance-search />
+        <datalist id="attendance-patient-options">
+          ${renderAttendancePatientOptions(state)}
+        </datalist>
       </label>
       ${
         canQueryDates
@@ -734,11 +737,20 @@ function buildScopeMessage(state: AttendanceState, role: UserRole): string | nul
     return "La sesion actual no incluye area; el backend debe limitar la vista del coordinador.";
   }
 
-  if (state.realtimeStatus === "unavailable") {
-    return ATTENDANCE_REALTIME_CONTRACT;
-  }
-
   return null;
+}
+
+function renderAttendancePatientOptions(state: AttendanceState): string {
+  const patients = new Map<string, string>();
+
+  state.rows.forEach((row) => {
+    patients.set(row.appointment.patient.id, row.appointment.patient.fullName);
+  });
+
+  return [...patients.values()]
+    .sort((left, right) => left.localeCompare(right, "es-MX"))
+    .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
+    .join("");
 }
 
 function dayRange(inputDate: string): { from: string; to: string } {
