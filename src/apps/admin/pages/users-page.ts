@@ -51,9 +51,11 @@ export async function mountUsersPage(
               ${roles.map((role) => `<option value="${escapeHtml(role.id)}">${escapeHtml(role.name)}</option>`).join("")}
             </select>
           </label>
-          <label>Acceso a clinica
-            <select name="clinicId">
-              <option value="">Sin clinica asignada</option>
+          <label>Especialidad
+            <input name="specialty" placeholder="Opcional para medico o terapeuta" />
+          </label>
+          <label>Acceso a clinicas
+            <select name="clinicIds" multiple size="${Math.min(Math.max(clinics.length, 2), 6)}">
               ${clinics.map((clinic) => `<option value="${escapeHtml(clinic.id)}">${escapeHtml(clinic.name)}</option>`).join("")}
             </select>
           </label>
@@ -96,14 +98,21 @@ export async function mountUsersPage(
         event.preventDefault();
         const form = event.currentTarget as HTMLFormElement;
         const data = new FormData(form);
-        const clinicId = String(data.get("clinicId") ?? "");
+        const clinicIds = data
+          .getAll("clinicIds")
+          .map((clinicId) => String(clinicId))
+          .filter(Boolean);
         void usersService
           .create({
             fullName: String(data.get("fullName") ?? "").trim(),
             email: String(data.get("email") ?? "").trim(),
             password: String(data.get("password") ?? ""),
             roleIds: [String(data.get("roleId") ?? "")].filter(Boolean),
-            clinicAccess: clinicId ? [{ clinicId, accessLevel: "standard" }] : [],
+            clinicAccess: clinicIds.map((clinicId) => ({
+              clinicId,
+              accessLevel: "standard",
+            })),
+            specialty: String(data.get("specialty") ?? "").trim() || undefined,
           })
           .then(() => mountUsersPage(root, "Usuario creado."))
           .catch((error) =>

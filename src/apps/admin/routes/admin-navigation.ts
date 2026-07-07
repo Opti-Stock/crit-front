@@ -1,5 +1,5 @@
 export interface AdminNavigationItem {
-  key: "users" | "roles" | "clinics" | "collaborators";
+  key: "users" | "roles" | "clinics" | "rooms";
   label: string;
 }
 
@@ -7,7 +7,7 @@ export const ADMIN_NAVIGATION_ITEMS: readonly AdminNavigationItem[] = [
   { key: "users", label: "Usuarios" },
   { key: "roles", label: "Roles" },
   { key: "clinics", label: "Clinicas" },
-  { key: "collaborators", label: "Colaboradores" },
+  { key: "rooms", label: "Consultorios" },
 ] as const;
 
 export function resolveAdminNavigationKey(): AdminNavigationItem["key"] {

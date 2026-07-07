@@ -11,7 +11,7 @@ import {
   resolveAdminNavigationKey,
 } from "./routes/admin-navigation";
 import { mountClinicsPage } from "./pages/clinics-page";
-import { mountCollaboratorsPage } from "./pages/collaborators-page";
+import { mountRoomsPage } from "./pages/rooms-page";
 import { mountRolesPage } from "./pages/roles-page";
 import { mountUsersPage } from "./pages/users-page";
 
@@ -135,8 +135,8 @@ export function mountAdminApp(root: HTMLElement): void {
         await mountClinicsPage(root);
         return;
 
-      case "collaborators":
-        await mountCollaboratorsPage(root);
+      case "rooms":
+        await mountRoomsPage(root);
         return;
 
       case "users":

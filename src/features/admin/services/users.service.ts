@@ -9,6 +9,8 @@ export interface CreateUserInput {
   password: string;
   roleIds: string[];
   clinicAccess: { clinicId: string; accessLevel: "standard" | "manage" }[];
+  specialty?: string;
+  position?: string;
 }
 
 class UsersService {
@@ -74,6 +76,8 @@ class UsersService {
         password: input.password,
         roleIds: input.roleIds,
         clinicAccess: input.clinicAccess,
+        specialty: input.specialty,
+        position: input.position,
       },
     });
   }
