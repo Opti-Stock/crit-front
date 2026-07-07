@@ -22,6 +22,11 @@ export interface CreateAttendanceInput {
   notesRequired: boolean;
 }
 
+export interface UpdateAttendanceInput {
+  status?: AttendanceStatus;
+  notesRequired?: boolean;
+}
+
 export function listAttendance(query: ListAttendanceQuery = {}) {
   return mainApiClient.requestWithMeta<AttendanceSummary[], PaginationMeta>(
     "/attendance",
@@ -36,8 +41,15 @@ export function createAttendance(input: CreateAttendanceInput) {
   });
 }
 
-export async function updateAttendanceStatus(): Promise<never> {
-  throw new Error(
-    "Attendance editing is pending crit-api PATCH support. No request was sent.",
+export function updateAttendanceStatus(
+  attendanceId: string,
+  input: UpdateAttendanceInput,
+) {
+  return mainApiClient.request<AttendanceSummary>(
+    `/attendance/${encodeURIComponent(attendanceId)}`,
+    {
+      method: "PATCH",
+      body: { ...input },
+    },
   );
 }

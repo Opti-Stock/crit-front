@@ -1,7 +1,7 @@
 import type { UserRole } from "../types/role.types";
 
 const CLINICAL_NOTES_ROLES: readonly UserRole[] = ["medico", "terapeuta"];
-const ADMIN_ENTRY_ROLES: readonly UserRole[] = ["direccion", "admin"];
+const ADMIN_ENTRY_ROLES: readonly UserRole[] = ["admin"];
 const ATTENDANCE_ROLES: readonly UserRole[] = [
   "recepcion",
   "coordinador",
@@ -10,7 +10,7 @@ const ATTENDANCE_ROLES: readonly UserRole[] = [
   "direccion",
   "admin",
 ];
-const HANDOFF_NOTE_ROLES: readonly UserRole[] = [
+const HANDOFF_NOTE_READ_ROLES: readonly UserRole[] = [
   "admin",
   "direccion",
   "recepcion",
@@ -19,8 +19,16 @@ const HANDOFF_NOTE_ROLES: readonly UserRole[] = [
   "terapeuta",
   "personal_acompanamiento",
 ];
-const NOTIFICATION_ROLES: readonly UserRole[] = HANDOFF_NOTE_ROLES;
+const HANDOFF_NOTE_WRITE_ROLES: readonly UserRole[] = [
+  "recepcion",
+  "coordinador",
+  "medico",
+  "terapeuta",
+  "personal_acompanamiento",
+];
+const NOTIFICATION_ROLES: readonly UserRole[] = HANDOFF_NOTE_READ_ROLES;
 const AP_ROLES: readonly UserRole[] = ["personal_acompanamiento"];
+const APPOINTMENT_WRITE_ROLES: readonly UserRole[] = ["recepcion", "coordinador"];
 
 export function canAccessClinicalNotes(role: UserRole): boolean {
   return CLINICAL_NOTES_ROLES.includes(role);
@@ -35,11 +43,11 @@ export function canAccessAttendance(role: UserRole): boolean {
 }
 
 export function canAccessHandoffNotes(role: UserRole): boolean {
-  return HANDOFF_NOTE_ROLES.includes(role);
+  return HANDOFF_NOTE_READ_ROLES.includes(role);
 }
 
 export function canCreateHandoffNotes(role: UserRole): boolean {
-  return HANDOFF_NOTE_ROLES.includes(role);
+  return HANDOFF_NOTE_WRITE_ROLES.includes(role);
 }
 
 export function canAccessNotifications(role: UserRole): boolean {
@@ -48,4 +56,12 @@ export function canAccessNotifications(role: UserRole): boolean {
 
 export function isApRole(role: UserRole): boolean {
   return AP_ROLES.includes(role);
+}
+
+export function canWriteAppointments(role: UserRole): boolean {
+  return APPOINTMENT_WRITE_ROLES.includes(role);
+}
+
+export function canWriteMedicalNotes(role: UserRole): boolean {
+  return CLINICAL_NOTES_ROLES.includes(role);
 }

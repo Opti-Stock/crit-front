@@ -9,6 +9,7 @@ export function listHandoffNotes(query: {
   page?: number;
   pageSize?: number;
   status?: HandoffStatus;
+  patientId?: string;
 } = {}) {
   return mainApiClient.requestWithMeta<HandoffNoteSummary[], PaginationMeta>(
     "/handoff-notes",
