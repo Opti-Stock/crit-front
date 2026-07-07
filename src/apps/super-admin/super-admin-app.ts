@@ -1,5 +1,6 @@
 import { superAdminService } from "../../features/super-admin/services/super-admin.service";
 import { superAdminSessionService } from "../../features/super-admin/services/super-admin-session.service";
+import { sessionService } from "../../features/auth/services/session.service";
 import type { TenantSummary } from "../../features/super-admin/types/super-admin.types";
 
 interface SuperAdminState {
@@ -22,6 +23,7 @@ export function mountSuperAdminApp(root: HTMLElement): void {
     return;
   }
 
+  sessionService.clearSession();
   renderShell(root);
   void loadTenants(root);
 }
@@ -60,6 +62,7 @@ function renderLogin(root: HTMLElement, errorMessage: string | null = null): voi
         email: String(formData.get("email") ?? "").trim(),
         password: String(formData.get("password") ?? ""),
       });
+      sessionService.clearSession();
       superAdminSessionService.setSession({
         accessToken: response.accessToken,
         fullName: response.superAdmin.fullName,

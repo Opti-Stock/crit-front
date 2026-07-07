@@ -1,4 +1,7 @@
+import { mountLoginPage } from "../../features/auth/pages/login-page";
+import { authService } from "../../features/auth/services/auth.service";
 import { sessionService } from "../../features/auth/services/session.service";
+import { superAdminSessionService } from "../../features/super-admin/services/super-admin-session.service";
 import { canAccessAdminEntry } from "../../guards/role-guard";
 import type { UserRole } from "../../types/role.types";
 import { escapeHtml } from "../../utils/dom";
@@ -15,7 +18,29 @@ import { mountUsersPage } from "./pages/users-page";
 export function mountAdminApp(root: HTMLElement): void {
   const session = sessionService.getSession();
 
-  if (!session || !canAccessAdminEntry(session.role)) {
+  if (!session) {
+    mountLoginPage(root, {
+      onSubmit: async (values) => {
+        try {
+          superAdminSessionService.clearSession();
+          sessionService.setSession(await authService.login(values));
+          mountAdminApp(root);
+        } catch {
+          mountLoginPage(root, {
+            errorMessage: "Invalid credentials.",
+            onSubmit: async (retryValues) => {
+              superAdminSessionService.clearSession();
+              sessionService.setSession(await authService.login(retryValues));
+              mountAdminApp(root);
+            },
+          });
+        }
+      },
+    });
+    return;
+  }
+
+  if (!canAccessAdminEntry(session.role)) {
     root.innerHTML = `
       <main class="app-shell app-shell--admin" aria-labelledby="admin-app-title">
         <aside class="app-sidebar" aria-label="Admin navigation">
