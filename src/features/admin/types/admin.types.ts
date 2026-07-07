@@ -1,12 +1,10 @@
-export interface AdminCollectionResponse<T> {
-  items: readonly T[];
-}
-
 export interface UserSummary {
   id: string;
   fullName: string;
   email: string;
-  active: boolean;
+  status: "active" | "inactive";
+  roles: { id: string; name: string }[];
+  clinicAccess?: { clinicId: string; clinicName: string; accessLevel: "standard" | "manage" }[];
 }
 
 export interface RoleSummary {
@@ -18,12 +16,17 @@ export interface RoleSummary {
 export interface ClinicSummary {
   id: string;
   name: string;
-  active: boolean;
+  status: "active" | "inactive";
+  specialization?: string | null;
+  capacity?: number | null;
 }
 
 export interface CollaboratorSummary {
   id: string;
+  userId: string;
   fullName: string;
-  email: string;
-  active: boolean;
+  email?: string | null;
+  specialty: string;
+  status: "active" | "inactive";
+  clinicIds: string[];
 }

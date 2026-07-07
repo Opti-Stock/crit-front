@@ -35,5 +35,5 @@ export const appConfig = {
   checkinApiUrl: readEnvValue("VITE_CHECKIN_API_URL", "http://localhost:3002/checkin"),
   superAdminApiUrl: readEnvValue("VITE_SUPER_ADMIN_API_URL", "http://localhost:3003/super-admin"),
   authBypassEnabled: readBooleanEnvValue("VITE_AUTH_BYPASS_ENABLED", false),
-  adminMocksEnabled: readBooleanEnvValue("VITE_USE_ADMIN_MOCKS", true),
+  adminMocksEnabled: readBooleanEnvValue("VITE_USE_ADMIN_MOCKS", false),
 } as const;

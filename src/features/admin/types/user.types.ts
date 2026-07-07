@@ -2,5 +2,6 @@ export interface UserDto {
   id: string;
   fullName: string;
   email: string;
-  active: boolean;
+  status: "active" | "inactive";
+  roles: { id: string; name: string }[];
 }

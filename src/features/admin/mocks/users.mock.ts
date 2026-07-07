@@ -5,12 +5,14 @@ export const mockUsers: readonly UserDto[] = [
     id: "1",
     fullName: "Administrador",
     email: "admin@crit.org",
-    active: true,
+    status: "active",
+    roles: [{ id: "admin", name: "admin" }],
   },
   {
     id: "2",
-    fullName: "Juan Pérez",
+    fullName: "Juan Perez",
     email: "juan@crit.org",
-    active: true,
+    status: "active",
+    roles: [{ id: "medico", name: "medico" }],
   },
 ];

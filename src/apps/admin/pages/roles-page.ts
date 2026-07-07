@@ -1,5 +1,6 @@
-import { rolesService } from "../../../features/admin/services/roles.service";
 import { renderAdminTable } from "../../../features/admin/components/admin-table";
+import { rolesService } from "../../../features/admin/services/roles.service";
+import { escapeHtml } from "../../../utils/dom";
 
 export async function mountRolesPage(
   root: HTMLElement,
@@ -16,7 +17,6 @@ export async function mountRolesPage(
 
     root.innerHTML = `
       <section class="app-panel">
-
         <div
           style="
             display:flex;
@@ -27,50 +27,32 @@ export async function mountRolesPage(
         >
           <div>
             <h2>Roles</h2>
-            <p>Manage available roles.</p>
+            <p>Roles disponibles del tenant. Se crean desde seed para mantener permisos consistentes.</p>
           </div>
-
-          <button
-            class="primary-action"
-            disabled
-          >
-            New role
-          </button>
         </div>
 
         ${renderAdminTable(
           [
             {
               header: "Nombre",
-              render: (role) => role.name,
+              render: (role) => escapeHtml(role.name),
             },
             {
-              header: "Descripción",
+              header: "Descripcion",
               render: (role) =>
-                role.description ?? "-",
+                role.description ? escapeHtml(role.description) : "-",
             },
           ],
           roles,
         )}
-
       </section>
     `;
   } catch (error) {
     root.innerHTML = `
       <section class="app-panel">
-
         <h2>Roles</h2>
-
-        <p>
-          Failed to load roles.
-        </p>
-
-        <pre>${
-          error instanceof Error
-            ? error.message
-            : "Unknown error"
-        }</pre>
-
+        <p>Failed to load roles.</p>
+        <pre>${error instanceof Error ? error.message : "Unknown error"}</pre>
       </section>
     `;
   }

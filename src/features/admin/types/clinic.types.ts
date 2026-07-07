@@ -1,5 +1,7 @@
 export interface ClinicDto {
   id: string;
   name: string;
-  active: boolean;
+  status: "active" | "inactive";
+  specialization?: string | null;
+  capacity?: number | null;
 }
