@@ -12,6 +12,7 @@ interface MedicalNotesState {
   appointments: AppointmentSummary[];
   notes: MedicalNoteSummary[];
   selectedPatientId: string;
+  patientQuery: string;
   message: string | null;
   isLoading: boolean;
   currentCollaboratorId: string | null;
@@ -28,6 +29,7 @@ export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
     appointments: [],
     notes: [],
     selectedPatientId: "",
+    patientQuery: "",
     message: null,
     isLoading: true,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
@@ -77,10 +79,18 @@ function render(root: HTMLElement, state: MedicalNotesState): void {
 }
 
 function renderMedicalNotesChat(state: MedicalNotesState): string {
-  const patients = getPatients(state);
+  const allPatients = getPatients(state);
+  const patients = getFilteredPatients(state, allPatients);
+
+  if (allPatients.length === 0) {
+    return `<p class="empty-state">No hay pacientes visibles para notas medicas.</p>`;
+  }
 
   if (patients.length === 0) {
-    return `<p class="empty-state">No hay pacientes visibles para notas medicas.</p>`;
+    return `
+      ${renderMedicalPatientFilter(state, allPatients)}
+      <p class="empty-state">No hay pacientes que coincidan con la busqueda.</p>
+    `;
   }
 
   const patient = patients.find((candidate) => candidate.id === state.selectedPatientId) ?? patients[0];
@@ -95,6 +105,7 @@ function renderMedicalNotesChat(state: MedicalNotesState): string {
   );
 
   return `
+    ${renderMedicalPatientFilter(state, allPatients)}
     <div class="handoff-shell">
       <aside class="handoff-sidebar">
         <div class="handoff-patient-list" aria-label="Pacientes con notas medicas">
@@ -130,6 +141,27 @@ function renderMedicalNotesChat(state: MedicalNotesState): string {
         </div>
       </section>
     </div>
+  `;
+}
+
+function renderMedicalPatientFilter(
+  state: MedicalNotesState,
+  patients: { id: string; fullName: string }[],
+): string {
+  return `
+    <section class="attendance-toolbar" aria-label="Filtro de notas medicas">
+      <label>
+        Buscar paciente
+        <input name="medicalPatientQuery" type="search" list="medical-patient-options" value="${escapeHtml(state.patientQuery)}" placeholder="Escribe para buscar paciente..." data-medical-patient-search />
+        <datalist id="medical-patient-options">
+          ${patients
+            .map((patient) => patient.fullName)
+            .sort((left, right) => left.localeCompare(right, "es-MX"))
+            .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
+            .join("")}
+        </datalist>
+      </label>
+    </section>
   `;
 }
 
@@ -204,6 +236,14 @@ function bindEvents(root: HTMLElement, state: MedicalNotesState): void {
     },
   );
 
+  root.querySelector<HTMLInputElement>("[data-medical-patient-search]")?.addEventListener(
+    "input",
+    (event) => {
+      state.patientQuery = (event.currentTarget as HTMLInputElement).value;
+      render(root, state);
+    },
+  );
+
   root.querySelectorAll<HTMLButtonElement>("[data-print-note]").forEach((button) => {
     button.addEventListener("click", () => window.print());
   });
@@ -248,4 +288,26 @@ function getPatients(state: MedicalNotesState): { id: string; fullName: string }
   return [...byId.values()].sort((left, right) =>
     left.fullName.localeCompare(right.fullName, "es-MX"),
   );
+}
+
+function getFilteredPatients(
+  state: MedicalNotesState,
+  patients: { id: string; fullName: string }[],
+): { id: string; fullName: string }[] {
+  const query = normalizeText(state.patientQuery);
+
+  if (!query) return patients;
+
+  return patients.filter(
+    (patient) =>
+      normalizeText(patient.fullName).includes(query) ||
+      patient.id.toLowerCase().includes(query),
+  );
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
