@@ -19,6 +19,7 @@ import { escapeHtml } from "../../utils/dom";
 import { mountDashboardPage } from "./pages/dashboard-page";
 
 import { authService } from "../../features/auth/services/auth.service";
+import { superAdminSessionService } from "../../features/super-admin/services/super-admin-session.service";
 
 let hashNavigationHandler: (() => void) | null = null;
 let hashNavigationRoot: HTMLElement | null = null;
@@ -266,6 +267,7 @@ async function renderLogin(root: HTMLElement): Promise<void> {
 
     onSubmit: async (values) => {
       if (appConfig.authBypassEnabled) {
+        superAdminSessionService.clearSession();
         sessionService.setSession({
           accessToken: buildMockAccessToken(
             values.email,
@@ -281,6 +283,7 @@ async function renderLogin(root: HTMLElement): Promise<void> {
       try {
         const session = await authService.login(values);
 
+        superAdminSessionService.clearSession();
         sessionService.setSession(session);
 
         mountMainApp(root);
@@ -293,6 +296,7 @@ async function renderLogin(root: HTMLElement): Promise<void> {
           onSubmit: async (retryValues) => {
             const session = await authService.login(retryValues);
 
+            superAdminSessionService.clearSession();
             sessionService.setSession(session);
 
             mountMainApp(root);
