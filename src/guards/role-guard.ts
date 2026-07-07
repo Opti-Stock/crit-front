@@ -19,6 +19,8 @@ const HANDOFF_NOTE_ROLES: readonly UserRole[] = [
   "terapeuta",
   "personal_acompanamiento",
 ];
+const NOTIFICATION_ROLES: readonly UserRole[] = HANDOFF_NOTE_ROLES;
+const AP_ROLES: readonly UserRole[] = ["personal_acompanamiento"];
 
 export function canAccessClinicalNotes(role: UserRole): boolean {
   return CLINICAL_NOTES_ROLES.includes(role);
@@ -38,4 +40,12 @@ export function canAccessHandoffNotes(role: UserRole): boolean {
 
 export function canCreateHandoffNotes(role: UserRole): boolean {
   return HANDOFF_NOTE_ROLES.includes(role);
+}
+
+export function canAccessNotifications(role: UserRole): boolean {
+  return NOTIFICATION_ROLES.includes(role);
+}
+
+export function isApRole(role: UserRole): boolean {
+  return AP_ROLES.includes(role);
 }
