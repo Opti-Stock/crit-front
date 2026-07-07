@@ -56,6 +56,10 @@ select {
   background: #1f3430;
 }
 
+.app-shell--ap .app-sidebar {
+  background: #263445;
+}
+
 .app-brand {
   margin: 0;
   font-size: 1rem;
@@ -107,6 +111,14 @@ select {
   display: grid;
   gap: 8px;
   margin-top: auto;
+}
+
+.app-session-actions__eyebrow {
+  color: #aebdcb;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .app-session-actions__label {
@@ -1044,11 +1056,27 @@ button:disabled {
   padding: 16px;
 }
 
+.handoff-conversation .handoff-create-form {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 -16px -16px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid #d8dee5;
+  border-radius: 0 0 8px 8px;
+  background: #ffffff;
+  box-shadow: 0 -10px 18px rgba(23, 32, 42, 0.06);
+}
+
 .handoff-conversation__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.handoff-mobile-back {
+  display: none;
 }
 
 .handoff-conversation__header h3 {
@@ -1172,6 +1200,25 @@ button:disabled {
     padding: 12px;
   }
 
+  .handoff-conversation .handoff-create-form {
+    margin: 0 -12px -12px;
+    padding: 14px 12px 12px;
+  }
+
+  .handoff-page--ap.handoff-page--has-selection .handoff-sidebar {
+    display: none;
+  }
+
+  .handoff-page--ap:not(.handoff-page--has-selection) .handoff-main {
+    display: none;
+  }
+
+  .handoff-mobile-back {
+    display: inline-flex;
+    justify-self: start;
+    width: max-content;
+  }
+
   .handoff-thread {
     max-height: none;
     overflow: visible;
@@ -1192,6 +1239,86 @@ button:disabled {
   .handoff-message--other {
     width: calc(100% - 20px);
     margin-right: 20px;
+  }
+}
+
+.notifications-page .inline-alert {
+  position: static;
+  top: auto;
+}
+
+.notifications-header {
+  align-items: center;
+}
+
+.notifications-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notifications-header__actions select {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #cad3dc;
+  border-radius: 8px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.notifications-realtime {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifications-list {
+  display: grid;
+  gap: 14px;
+}
+
+.notification-card {
+  border-left: 5px solid #cad3dc;
+}
+
+.notification-card--unread {
+  border-color: #8cb5df;
+  border-left-color: #2e6f9e;
+  box-shadow: 0 0 0 2px rgba(46, 111, 158, 0.1);
+}
+
+.notification-card__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.notification-card__summary dt {
+  color: #607080;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.notification-card__summary dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .notifications-header,
+  .notifications-header__actions,
+  .notification-card .button-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notifications-realtime,
+  .notifications-header__actions select,
+  .notification-card .button-row button {
+    width: 100%;
+    max-width: 100%;
   }
 }
 

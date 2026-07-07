@@ -16,6 +16,7 @@ import type { UserRole } from "../../../types/role.types";
 import {
   canAccessHandoffNotes,
   canCreateHandoffNotes,
+  isApRole,
 } from "../../../guards/role-guard";
 import { escapeHtml, formatDateTime } from "../../../utils/dom";
 import {
@@ -27,8 +28,10 @@ import {
 interface HandoffFilters {
   patientQuery: string;
   unreadOnly: boolean;
+  createdDate: string;
   area: string;
   category: HandoffCategory | "";
+  authorQuery: string;
   relatedOnly: boolean;
 }
 
@@ -94,8 +97,10 @@ export function mountHandoffNotesPage(root: HTMLElement, role: UserRole): void {
     filters: {
       patientQuery: "",
       unreadOnly: false,
+      createdDate: "",
       area: "",
       category: "",
+      authorQuery: "",
       relatedOnly: true,
     },
   };
@@ -109,8 +114,9 @@ export function mountHandoffNotesPage(root: HTMLElement, role: UserRole): void {
   realtimeUnsubscribe = subscribeToHandoffNotesRealtime({
     onNoteCreated: (event) => {
       state.notes = upsertNote(state.notes, event.note);
-      state.selectedPatientId ||= event.note.patient.id;
-      state.focusedNoteId = event.note.id;
+      if (state.selectedPatientId === event.note.patient.id) {
+        state.focusedNoteId = event.note.id;
+      }
       state.saveMessage = "Nueva nota recibida.";
       state.saveTone = "info";
       render(root, state, role);
@@ -140,8 +146,12 @@ async function load(
   try {
     const [notes, patients, appointments] = await Promise.all([
       listHandoffNotes({ pageSize: 100 }),
-      listPatients({ pageSize: 100 }),
-      listAppointments({ pageSize: 100 }),
+      isApRole(role)
+        ? Promise.resolve({ data: [] as CatalogItem[] })
+        : listPatients({ pageSize: 100 }),
+      isApRole(role)
+        ? Promise.resolve({ data: [] as AppointmentSummary[] })
+        : listAppointments({ pageSize: 100 }),
     ]);
 
     const mergedPatients = mergePatients(
@@ -175,6 +185,9 @@ async function load(
 }
 
 function render(root: HTMLElement, state: HandoffState, role: UserRole): void {
+  const apClass = isApRole(role) ? " handoff-page--ap" : "";
+  const selectedClass = state.selectedPatientId ? " handoff-page--has-selection" : "";
+
   if (!canAccessHandoffNotes(role)) {
     root.innerHTML = `
       <section class="feature-page handoff-page">
@@ -188,7 +201,7 @@ function render(root: HTMLElement, state: HandoffState, role: UserRole): void {
   }
 
   root.innerHTML = `
-    <section class="feature-page handoff-page">
+    <section class="feature-page handoff-page${apClass}${selectedClass}">
       <header class="feature-header handoff-header">
         <div>
           <p class="app-eyebrow">Notas de enlace</p>
@@ -200,8 +213,8 @@ function render(root: HTMLElement, state: HandoffState, role: UserRole): void {
       ${renderMessage(state.saveMessage, state.saveTone)}
       <div class="handoff-shell">
         <aside class="handoff-sidebar">
-          ${renderFilters(state)}
-          ${renderPatientList(state)}
+          ${renderFilters(state, role)}
+          ${renderPatientList(state, role)}
         </aside>
         <section class="handoff-main" aria-live="polite">
           ${renderConversation(state, role)}
@@ -238,7 +251,7 @@ function renderMessage(message: string | null, tone: "error" | "success" | "info
   `;
 }
 
-function renderFilters(state: HandoffState): string {
+function renderFilters(state: HandoffState, role: UserRole): string {
   const { filters } = state;
 
   return `
@@ -249,7 +262,7 @@ function renderFilters(state: HandoffState): string {
           Paciente
           <input name="patientQuery" list="handoff-patient-options" value="${escapeHtml(filters.patientQuery)}" placeholder="Escribe para buscar paciente" />
           <datalist id="handoff-patient-options">
-            ${renderHandoffPatientOptions(state)}
+            ${renderHandoffPatientOptions(state, role)}
           </datalist>
         </label>
         <label>
@@ -258,6 +271,10 @@ function renderFilters(state: HandoffState): string {
             <option value="" ${filters.unreadOnly ? "" : "selected"}>Todas</option>
             <option value="unread" ${filters.unreadOnly ? "selected" : ""}>No leidas</option>
           </select>
+        </label>
+        <label>
+          Fecha
+          <input type="date" name="createdDate" value="${escapeHtml(filters.createdDate)}" />
         </label>
         <label>
           Area
@@ -282,12 +299,20 @@ function renderFilters(state: HandoffState): string {
           </select>
         </label>
         <label>
-          Pacientes
-          <select name="patientScope">
-            <option value="related" ${filters.relatedOnly ? "selected" : ""}>Asignados o relacionados</option>
-            <option value="all" ${filters.relatedOnly ? "" : "selected"}>Todos visibles</option>
-          </select>
+          Autor
+          <input name="authorQuery" value="${escapeHtml(filters.authorQuery)}" placeholder="Nombre, rol o area" />
         </label>
+        ${
+          isApRole(role)
+            ? ""
+            : `<label>
+                Pacientes
+                <select name="patientScope">
+                  <option value="related" ${filters.relatedOnly ? "selected" : ""}>Asignados o relacionados</option>
+                  <option value="all" ${filters.relatedOnly ? "" : "selected"}>Todos visibles</option>
+                </select>
+              </label>`
+        }
         <div class="button-row handoff-filter-form__actions">
           <button type="submit">Aplicar</button>
           <button type="button" class="secondary-action" data-reset-handoff-filters>Limpiar</button>
@@ -297,8 +322,8 @@ function renderFilters(state: HandoffState): string {
   `;
 }
 
-function renderPatientList(state: HandoffState): string {
-  const patients = getVisiblePatients(state);
+function renderPatientList(state: HandoffState, role: UserRole): string {
+  const patients = getVisiblePatients(state, role);
 
   if (state.isLoading) {
     return `<p class="empty-state">Cargando pacientes...</p>`;
@@ -329,8 +354,8 @@ function renderPatientList(state: HandoffState): string {
   `;
 }
 
-function renderHandoffPatientOptions(state: HandoffState): string {
-  return getAllowedPatientsForNewNote(state)
+function renderHandoffPatientOptions(state: HandoffState, role: UserRole): string {
+  return getAllowedPatientsForNewNote(state, role)
     .map((patient) => getPatientName(patient))
     .sort((left, right) => left.localeCompare(right, "es-MX"))
     .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
@@ -347,31 +372,36 @@ function renderConversation(state: HandoffState, role: UserRole): string {
   }
 
   const patient = findPatient(state, state.selectedPatientId);
-  const notes = getFilteredNotes(state).filter(
+  const notes = getFilteredNotes(state, role).filter(
     (note) => note.patient.id === state.selectedPatientId,
   );
 
   return `
     <div class="handoff-conversation">
       <div class="handoff-conversation__header">
+        ${
+          isApRole(role)
+            ? `<button class="text-action handoff-mobile-back" type="button" data-handoff-back-to-patients>Volver a pacientes</button>`
+            : ""
+        }
         <div>
           <p class="app-eyebrow">Paciente</p>
           <h3>${escapeHtml(patient ? getPatientName(patient) : "Paciente seleccionado")}</h3>
         </div>
         <span class="status-pill">${notes.length} notas</span>
       </div>
-      ${canCreateHandoffNotes(role) ? renderCreateForm(state) : ""}
       ${
         notes.length === 0
           ? `<p class="empty-state">Sin notas para este paciente con los filtros actuales.</p>`
-          : `<div class="handoff-thread" data-handoff-thread>${notes.map((note) => renderNote(note, state)).join("")}</div>`
+          : `<div class="handoff-thread" data-handoff-thread>${notes.map((note) => renderNote(note, state, role)).join("")}</div>`
       }
+      ${canCreateHandoffNotes(role) ? renderCreateForm(state, role) : ""}
     </div>
   `;
 }
 
-function renderCreateForm(state: HandoffState): string {
-  const patients = getAllowedPatientsForNewNote(state);
+function renderCreateForm(state: HandoffState, role: UserRole): string {
+  const patients = getAllowedPatientsForNewNote(state, role);
 
   if (patients.length === 0) {
     return `<p class="empty-state">No hay pacientes relacionados disponibles para crear una nota.</p>`;
@@ -413,7 +443,11 @@ function renderCreateForm(state: HandoffState): string {
   `;
 }
 
-function renderNote(note: HandoffNoteSummary, state: HandoffState): string {
+function renderNote(
+  note: HandoffNoteSummary,
+  state: HandoffState,
+  role: UserRole,
+): string {
   const category = getNoteCategory(note);
   const isOwn = isOwnNote(note, state);
   const unread = isUnreadForCurrentUser(note, state.currentUserId);
@@ -436,7 +470,7 @@ function renderNote(note: HandoffNoteSummary, state: HandoffState): string {
       <dl class="handoff-message__details">
         <div><dt>Paciente</dt><dd>${escapeHtml(note.patient.fullName)}</dd></div>
         <div><dt>Autor</dt><dd>${escapeHtml(note.createdBy.fullName)}</dd></div>
-        <div><dt>Rol / area</dt><dd>${escapeHtml(getAuthorRoleArea(note))}</dd></div>
+        <div><dt>Rol / area</dt><dd>${escapeHtml(getAuthorRoleArea(note, state, role))}</dd></div>
         <div><dt>Lectura</dt><dd>${escapeHtml(unread ? "No leida" : "Leida")}</dd></div>
       </dl>
     </article>
@@ -449,7 +483,7 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
     (event) => {
       event.preventDefault();
       const data = new FormData(event.currentTarget as HTMLFormElement);
-      state.filters = readFilters(data);
+      state.filters = readFilters(data, role);
       render(root, state, role);
       scheduleScrollToNote(root, state);
     },
@@ -461,8 +495,10 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
       state.filters = {
         patientQuery: "",
         unreadOnly: false,
+        createdDate: "",
         area: "",
         category: "",
+        authorQuery: "",
         relatedOnly: true,
       };
       render(root, state, role);
@@ -487,6 +523,17 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
     },
   );
 
+  root.querySelector<HTMLButtonElement>("[data-handoff-back-to-patients]")?.addEventListener(
+    "click",
+    () => {
+      state.selectedPatientId = "";
+      state.focusedNoteId = "";
+      state.saveMessage = null;
+      state.saveTone = "success";
+      render(root, state, role);
+    },
+  );
+
   root.querySelector<HTMLFormElement>("[data-handoff-form]")?.addEventListener(
     "submit",
     (event) => {
@@ -506,7 +553,7 @@ async function submitHandoff(
   const patientId = String(data.get("patientId") ?? "");
   const category = String(data.get("category") ?? "") as HandoffCategory;
   const content = String(data.get("content") ?? "").trim();
-  const validationMessage = validateNewNote(state, patientId, category, content);
+  const validationMessage = validateNewNote(state, role, patientId, category, content);
 
   if (validationMessage) {
     state.saveMessage = validationMessage;
@@ -587,24 +634,29 @@ async function markPatientHistoryAsRead(
   scheduleScrollToNote(root, state);
 }
 
-function readFilters(data: FormData): HandoffFilters {
+function readFilters(data: FormData, role: UserRole): HandoffFilters {
   return {
     patientQuery: String(data.get("patientQuery") ?? "").trim(),
     unreadOnly: String(data.get("readStatus") ?? "") === "unread",
+    createdDate: String(data.get("createdDate") ?? "").trim(),
     area: String(data.get("area") ?? "").trim(),
     category: String(data.get("category") ?? "") as HandoffCategory | "",
-    relatedOnly: String(data.get("patientScope") ?? "related") !== "all",
+    authorQuery: String(data.get("authorQuery") ?? "").trim(),
+    relatedOnly: isApRole(role)
+      ? true
+      : String(data.get("patientScope") ?? "related") !== "all",
   };
 }
 
 function validateNewNote(
   state: HandoffState,
+  role: UserRole,
   patientId: string,
   category: HandoffCategory,
   content: string,
 ): string | null {
   const allowedPatientIds = new Set(
-    getAllowedPatientsForNewNote(state).map((patient) => patient.id),
+    getAllowedPatientsForNewNote(state, role).map((patient) => patient.id),
   );
 
   if (!patientId || !allowedPatientIds.has(patientId)) {
@@ -622,20 +674,36 @@ function validateNewNote(
   return null;
 }
 
-function getVisiblePatients(state: HandoffState): CatalogItem[] {
+function getVisiblePatients(state: HandoffState, role: UserRole): CatalogItem[] {
   const query = normalizeText(state.filters.patientQuery);
-  const allowedPatients = state.filters.relatedOnly
-    ? getAllowedPatientsForNewNote(state)
+  const allowedPatients = state.filters.relatedOnly || isApRole(role)
+    ? getAllowedPatientsForNewNote(state, role)
     : state.patients;
+  const filteredPatientIds = hasNoteScopedFilters(state)
+    ? new Set(getFilteredNotes(state, role).map((note) => note.patient.id))
+    : null;
 
   return allowedPatients.filter((patient) => {
     const patientName = normalizeText(getPatientName(patient));
-    const matchesQuery = !query || patientName.includes(query) || patient.id.includes(query);
-    return matchesQuery;
+    const patientFolio = normalizeText(patient.folio ?? "");
+    const matchesQuery =
+      !query ||
+      patientName.includes(query) ||
+      patientFolio.includes(query) ||
+      normalizeText(patient.id).includes(query);
+    const matchesNoteFilters = !filteredPatientIds || filteredPatientIds.has(patient.id);
+    return matchesQuery && matchesNoteFilters;
   });
 }
 
-function getAllowedPatientsForNewNote(state: HandoffState): CatalogItem[] {
+function getAllowedPatientsForNewNote(
+  state: HandoffState,
+  role: UserRole,
+): CatalogItem[] {
+  if (isApRole(role)) {
+    return state.patients.filter((patient) => state.relatedPatientIds.has(patient.id));
+  }
+
   if (state.relatedPatientIds.size === 0) {
     return state.patients;
   }
@@ -643,7 +711,10 @@ function getAllowedPatientsForNewNote(state: HandoffState): CatalogItem[] {
   return state.patients.filter((patient) => state.relatedPatientIds.has(patient.id));
 }
 
-function getFilteredNotes(state: HandoffState): HandoffNoteSummary[] {
+function getFilteredNotes(
+  state: HandoffState,
+  role: UserRole,
+): HandoffNoteSummary[] {
   return state.notes.filter((note) => {
     if (state.filters.unreadOnly && !isUnreadForCurrentUser(note, state.currentUserId)) {
       return false;
@@ -655,13 +726,70 @@ function getFilteredNotes(state: HandoffState): HandoffNoteSummary[] {
 
     if (
       state.filters.area &&
-      normalizeText(getNoteArea(note)) !== normalizeText(state.filters.area)
+      normalizeText(getNoteArea(note, state)) !== normalizeText(state.filters.area)
+    ) {
+      return false;
+    }
+
+    if (
+      state.filters.createdDate &&
+      toDateInputKey(note.createdAt) !== state.filters.createdDate
+    ) {
+      return false;
+    }
+
+    if (
+      state.filters.authorQuery &&
+      !getAuthorSearchText(note, state, role).includes(
+        normalizeText(state.filters.authorQuery),
+      )
     ) {
       return false;
     }
 
     return true;
   });
+}
+
+function hasNoteScopedFilters(state: HandoffState): boolean {
+  return Boolean(
+    state.filters.unreadOnly ||
+      state.filters.createdDate ||
+      state.filters.area ||
+      state.filters.category ||
+      state.filters.authorQuery,
+  );
+}
+
+function getAuthorSearchText(
+  note: HandoffNoteSummary,
+  state: HandoffState,
+  role: UserRole,
+): string {
+  return normalizeText(
+    [
+      note.createdBy.fullName,
+      note.createdBy.id,
+      note.createdBy.role,
+      isOwnNote(note, state) ? role : "",
+      getNoteArea(note, state),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+}
+
+function toDateInputKey(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function mergePatients(
@@ -831,14 +959,26 @@ function getCategoryTitle(category: HandoffCategory): string {
   );
 }
 
-function getAuthorRoleArea(note: HandoffNoteSummary): string {
-  const role = note.createdBy.role ?? "Rol no disponible";
-  const area = getNoteArea(note) || "Area no disponible";
-  return `${role} / ${area}`;
+function getAuthorRoleArea(
+  note: HandoffNoteSummary,
+  state: HandoffState,
+  role: UserRole,
+): string {
+  const authorRole = note.createdBy.role
+    ? formatRoleLabel(note.createdBy.role)
+    : isOwnNote(note, state)
+      ? formatRoleLabel(role)
+      : "Rol no disponible";
+  const area = getNoteArea(note, state) || "Area no disponible";
+  return `${authorRole} / ${area}`;
 }
 
-function getNoteArea(note: HandoffNoteSummary): string {
-  return note.area ?? note.createdBy.area ?? "";
+function getNoteArea(note: HandoffNoteSummary, state?: HandoffState): string {
+  return (
+    note.area ??
+    note.createdBy.area ??
+    (state && isOwnNote(note, state) ? state.currentUserArea ?? "" : "")
+  );
 }
 
 function getAreaOptions(state: HandoffState): string[] {
@@ -849,7 +989,7 @@ function getAreaOptions(state: HandoffState): string[] {
   }
 
   state.notes.forEach((note) => {
-    const area = getNoteArea(note);
+    const area = getNoteArea(note, state);
 
     if (area) {
       areas.add(area);
@@ -875,7 +1015,7 @@ function buildPublishAsLabel(
   return roleArea ? `${name} - ${roleArea}` : name;
 }
 
-function formatRoleLabel(role: UserRole): string {
+function formatRoleLabel(role: string): string {
   switch (role) {
     case "admin":
       return "Admin";
