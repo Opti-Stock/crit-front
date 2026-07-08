@@ -66,6 +66,8 @@ const CALENDAR_VIEW_OPTIONS: readonly CalendarViewMode[] = [
 const PIXELS_PER_MINUTE = 1.2;
 const APPOINTMENT_TIME_STEP_MINUTES = 5;
 const APPOINTMENT_TIME_STEP_SECONDS = APPOINTMENT_TIME_STEP_MINUTES * 60;
+const DEFAULT_PRE_SESSION_MINUTES = 5;
+const DEFAULT_POST_SESSION_MINUTES = 40;
 const PATIENT_SEARCH_DEBOUNCE_MS = 300;
 const PATIENT_SEARCH_PAGE_SIZE = 10;
 
@@ -288,8 +290,6 @@ function renderForm(state: CalendarState): string {
       ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes)}
       <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultStart)}" required /></label>
       <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultEnd)}" required /></label>
-      <label>Pre sesion<input name="preSessionMinutes" type="number" min="0" value="5" /></label>
-      <label>Post sesion<input name="postSessionMinutes" type="number" min="0" value="40" /></label>
       <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Creando..." : "Crear cita"}</button>
     </form>
   `;
@@ -1301,8 +1301,8 @@ async function createAppointmentFromForm(
       appointmentTypeId: String(data.get("appointmentTypeId")),
       startsAt: startsAt.toISOString(),
       endsAt: endsAt.toISOString(),
-      preSessionMinutes: Number(data.get("preSessionMinutes") ?? 0),
-      postSessionMinutes: Number(data.get("postSessionMinutes") ?? 0),
+      preSessionMinutes: DEFAULT_PRE_SESSION_MINUTES,
+      postSessionMinutes: DEFAULT_POST_SESSION_MINUTES,
     });
     state.isLoading = true;
     state.isSaving = false;
