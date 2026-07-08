@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "echo \"Lint not configured yet\"",
-    "test": "node --test --experimental-strip-types tests/calendar-layout.test.ts"
+    "test": "node --test --experimental-strip-types tests/calendar-layout.test.ts",
+    "test:e2e": "node --test --experimental-strip-types tests/e2e-browser-smoke.test.ts"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

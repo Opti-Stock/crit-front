@@ -42,23 +42,25 @@ class RoomsService {
     });
   }
 
-  async delete(roomId: string): Promise<void> {
+  async delete(roomId: string, reason?: string): Promise<void> {
     if (appConfig.adminMocksEnabled) {
       return;
     }
 
     await adminApiClient.request<void>(`/rooms/${encodeURIComponent(roomId)}`, {
       method: "DELETE",
+      body: reason ? { reason } : undefined,
     });
   }
 
-  async restore(roomId: string): Promise<RoomSummary> {
+  async restore(roomId: string, reason?: string): Promise<RoomSummary> {
     if (appConfig.adminMocksEnabled) {
       throw new Error("Restore is unavailable with admin mocks enabled.");
     }
 
     return adminApiClient.request<RoomDto>(`/rooms/${encodeURIComponent(roomId)}/restore`, {
       method: "POST",
+      body: reason ? { reason } : undefined,
     });
   }
 }

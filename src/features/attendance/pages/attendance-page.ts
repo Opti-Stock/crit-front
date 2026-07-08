@@ -31,6 +31,11 @@ import {
   createPendingMedicalNoteNotification,
   resolvePendingMedicalNoteNotification,
 } from "../services/pending-medical-note-notifications.service";
+import {
+  renderPatientCombobox,
+  renderPatientComboboxOptions,
+  type PatientComboboxOption,
+} from "../../../components/patient-combobox";
 
 type AttendanceActionStatus = Extract<
   AttendanceStatus,
@@ -327,6 +332,7 @@ function renderRow(
           <div>
             <p class="attendance-card__time">${escapeHtml(formatTime(appointment.startsAt))} - ${escapeHtml(formatTime(appointment.endsAt))}</p>
             <h3 class="attendance-card__patient">${escapeHtml(appointment.patient.fullName)}</h3>
+            ${renderCoordinatorScopeBadge(row, state, role)}
           </div>
           <span class="attendance-status-badge attendance-status-badge--${config.tone}">
             <span aria-hidden="true">${escapeHtml(config.icon)}</span>
@@ -379,28 +385,28 @@ function renderReadOnlyHint(row: AttendanceViewModel, role: UserRole): string {
 }
 
 function renderPatientSearchCombobox(state: AttendanceState): string {
-  return `
-    <div class="calendar-combobox-field" data-attendance-patient-combobox>
-      <label for="attendance-patient-search">Buscar paciente o folio</label>
-      <div class="calendar-combobox">
-        <input
-          id="attendance-patient-search"
-          name="search"
-          type="search"
-          value="${escapeHtml(state.search)}"
-          placeholder="Escribe para buscar paciente..."
-          autocomplete="off"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded="false"
-          aria-controls="attendance-patient-options"
-          data-attendance-search
-        />
-        <button class="calendar-combobox__clear" type="button" data-attendance-patient-clear aria-label="Limpiar paciente" ${state.search ? "" : "hidden"}>x</button>
-        <div id="attendance-patient-options" class="calendar-combobox__list" role="listbox"></div>
-      </div>
-    </div>
-  `;
+  return renderPatientCombobox({
+    id: "attendance-patient-search",
+    label: "Buscar paciente o folio",
+    query: state.search,
+    placeholder: "Escribe para buscar paciente...",
+    isOpen: false,
+    options: [],
+    searchDataAttribute: "data-attendance-search",
+    clearDataAttribute: "data-attendance-patient-clear",
+    optionDataAttribute: "data-attendance-patient-option",
+  });
+}
+
+function renderCoordinatorScopeBadge(
+  row: AttendanceViewModel,
+  state: AttendanceState,
+  role: UserRole,
+): string {
+  if (role !== "coordinador") return "";
+  const isMine = Boolean(state.currentCollaboratorId && row.appointment.collaborator.id === state.currentCollaboratorId);
+  const label = isMine ? "mio" : "equipo";
+  return `<span class="scope-badge scope-badge--${label}">${label}</span>`;
 }
 
 function renderCoordinatorScopeFilter(state: AttendanceState, role: UserRole): string {
@@ -506,7 +512,7 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
       if (!(target instanceof HTMLElement)) return;
       const option = target.closest<HTMLButtonElement>("[data-attendance-patient-option]");
       if (option) {
-        state.search = option.dataset.attendancePatientOption ?? "";
+        state.search = option.dataset.patientOptionLabel ?? "";
         state.page = 1;
         const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
         if (input) input.value = state.search;
@@ -891,23 +897,27 @@ function getCheckInLabel(row: AttendanceViewModel): string {
 
 function buildScopeMessage(state: AttendanceState, role: UserRole): string | null {
   if (isClinicalAttendanceRole(role) && !state.currentCollaboratorId) {
-    return "La sesion actual no incluye collaboratorId; el filtro de terapeuta depende del backend.";
+    return "Mostrando registros disponibles segun tu perfil.";
   }
 
   return null;
 }
 
-function getAttendancePatientOptions(state: AttendanceState): string[] {
-  const patients = new Map<string, string>();
+function getAttendancePatientOptions(state: AttendanceState): PatientComboboxOption[] {
+  const patients = new Map<string, PatientComboboxOption>();
 
   state.rows.forEach((row) => {
-    patients.set(row.appointment.patient.id, row.appointment.patient.fullName);
+    patients.set(row.appointment.patient.id, {
+      id: row.appointment.patient.id,
+      fullName: row.appointment.patient.fullName,
+      badge: row.appointment.patient.id,
+    });
   });
 
   const query = state.search.trim().toLowerCase();
   return [...patients.values()]
-    .filter((patientName) => !query || patientName.toLowerCase().includes(query))
-    .sort((left, right) => left.localeCompare(right, "es-MX"))
+    .filter((patient) => !query || (patient.fullName ?? "").toLowerCase().includes(query))
+    .sort((left, right) => (left.fullName ?? "").localeCompare(right.fullName ?? "", "es-MX"))
     .slice(0, 8);
 }
 
@@ -917,7 +927,7 @@ function syncAttendancePatientOptions(
   forceOpen?: boolean,
 ): void {
   const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
-  const list = root.querySelector<HTMLElement>("#attendance-patient-options");
+  const list = root.querySelector<HTMLElement>("#attendance-patient-search-options");
   const clear = root.querySelector<HTMLButtonElement>("[data-attendance-patient-clear]");
   if (!input || !list) return;
 
@@ -932,22 +942,17 @@ function syncAttendancePatientOptions(
   }
 
   const options = getAttendancePatientOptions(state);
-  if (!state.search.trim()) {
-    list.innerHTML = `<div class="calendar-combobox__state">Escribe para buscar pacientes.</div>`;
-    return;
-  }
-  if (options.length === 0) {
-    list.innerHTML = `<div class="calendar-combobox__state">Sin resultados.</div>`;
-    return;
-  }
-  list.innerHTML = options
-    .map((patientName) => `
-      <button class="calendar-combobox__option" type="button" role="option" data-attendance-patient-option="${escapeHtml(patientName)}">
-        <strong>${escapeHtml(patientName)}</strong>
-        <span>Paciente</span>
-      </button>
-    `)
-    .join("");
+  list.innerHTML = renderPatientComboboxOptions({
+    id: "attendance-patient-search",
+    label: "Buscar paciente o folio",
+    query: state.search,
+    placeholder: "Escribe para buscar paciente...",
+    isOpen,
+    options,
+    searchDataAttribute: "data-attendance-search",
+    clearDataAttribute: "data-attendance-patient-clear",
+    optionDataAttribute: "data-attendance-patient-option",
+  }, "attendance-patient-search-options");
 }
 
 function updateAttendanceResults(root: HTMLElement, state: AttendanceState, role: UserRole): void {

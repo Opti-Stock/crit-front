@@ -128,7 +128,7 @@ export async function mountRoomsPage(
         if (!roomId) return;
         if (!markInlineConfirmed(button, "Confirmar")) return;
         void roomsService
-          .delete(roomId)
+          .delete(roomId, readInlineReason(button))
           .then(() => mountRoomsPage(root, "Consultorio eliminado.", includeDeleted))
           .catch((error) =>
             mountRoomsPage(
@@ -144,8 +144,9 @@ export async function mountRoomsPage(
       button.addEventListener("click", () => {
         const roomId = button.dataset.restoreRoomId;
         if (!roomId) return;
+        if (!markInlineConfirmed(button, "Confirmar")) return;
         void roomsService
-          .restore(roomId)
+          .restore(roomId, readInlineReason(button))
           .then(() => mountRoomsPage(root, "Consultorio restaurado.", includeDeleted))
           .catch((error) =>
             mountRoomsPage(
@@ -169,13 +170,30 @@ export async function mountRoomsPage(
 
 function markInlineConfirmed(button: HTMLButtonElement, label: string): boolean {
   if (button.dataset.confirmed === "true") return true;
+  const originalLabel = button.textContent ?? "";
   button.dataset.confirmed = "true";
+  button.dataset.originalLabel = originalLabel;
   button.textContent = label;
+  const input = document.createElement("input");
+  input.className = "admin-action-reason";
+  input.type = "text";
+  input.placeholder = "Motivo";
+  input.dataset.adminActionReason = "true";
+  button.insertAdjacentElement("afterend", input);
+  input.focus();
   window.setTimeout(() => {
     if (button.isConnected && button.dataset.confirmed === "true") {
       button.dataset.confirmed = "false";
-      button.textContent = "Eliminar";
+      button.textContent = button.dataset.originalLabel ?? originalLabel;
+      button.parentElement?.querySelector<HTMLInputElement>("[data-admin-action-reason]")?.remove();
     }
-  }, 3000);
+  }, 7000);
   return false;
+}
+
+function readInlineReason(button: HTMLButtonElement): string | undefined {
+  const reason = button.parentElement
+    ?.querySelector<HTMLInputElement>("[data-admin-action-reason]")
+    ?.value.trim();
+  return reason || undefined;
 }

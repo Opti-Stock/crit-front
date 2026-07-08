@@ -83,23 +83,25 @@ class UsersService {
     });
   }
 
-  async delete(userId: string): Promise<void> {
+  async delete(userId: string, reason?: string): Promise<void> {
     if (appConfig.adminMocksEnabled) {
       return;
     }
 
     await adminApiClient.request<void>(`/users/${encodeURIComponent(userId)}`, {
       method: "DELETE",
+      body: reason ? { reason } : undefined,
     });
   }
 
-  async restore(userId: string): Promise<UserDto> {
+  async restore(userId: string, reason?: string): Promise<UserDto> {
     if (appConfig.adminMocksEnabled) {
       throw new Error("Restore is unavailable with admin mocks enabled.");
     }
 
     return adminApiClient.request<UserDto>(`/users/${encodeURIComponent(userId)}/restore`, {
       method: "POST",
+      body: reason ? { reason } : undefined,
     });
   }
 }

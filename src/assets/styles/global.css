@@ -466,6 +466,41 @@ button:hover,
   font-weight: 700;
 }
 
+.admin-action-reason {
+  display: inline-block;
+  width: min(16rem, 100%);
+  margin-left: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #cbd6e2;
+  border-radius: 999px;
+  color: #46586a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.scope-badge--mio {
+  border-color: #8ec5a5;
+  color: #1f6b3f;
+  background: #eefbf3;
+}
+
+.scope-badge--equipo,
+.scope-badge--area {
+  border-color: #aac0dd;
+  color: #285580;
+  background: #f0f6ff;
+}
+
 button:disabled,
 .secondary-action:disabled {
   opacity: 0.65;
@@ -2621,6 +2656,10 @@ button:disabled {
     overflow-y: auto;
   }
 
+  .calendar-workspace--full {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .calendar-sidebar {
     position: static;
     grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
@@ -2639,6 +2678,18 @@ button:disabled {
 
   .calendar-create-panel {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1180px) {
+  .calendar-main,
+  .calendar-grid-card,
+  .calendar-detail-panel {
+    max-width: 100%;
+  }
+
+  .calendar-workspace--full .calendar-main {
+    overflow-x: auto;
   }
 }
 

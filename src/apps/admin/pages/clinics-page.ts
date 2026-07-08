@@ -137,7 +137,7 @@ export async function mountClinicsPage(
         if (!clinicId) return;
         if (!markInlineConfirmed(button, "Confirmar")) return;
         void clinicsService
-          .delete(clinicId)
+          .delete(clinicId, readInlineReason(button))
           .then(() => mountClinicsPage(root, "Clinica eliminada.", includeDeleted))
           .catch((error) =>
             mountClinicsPage(
@@ -153,8 +153,9 @@ export async function mountClinicsPage(
       button.addEventListener("click", () => {
         const clinicId = button.dataset.restoreClinicId;
         if (!clinicId) return;
+        if (!markInlineConfirmed(button, "Confirmar")) return;
         void clinicsService
-          .restore(clinicId)
+          .restore(clinicId, readInlineReason(button))
           .then(() => mountClinicsPage(root, "Clinica restaurada.", includeDeleted))
           .catch((error) =>
             mountClinicsPage(
@@ -178,13 +179,30 @@ export async function mountClinicsPage(
 
 function markInlineConfirmed(button: HTMLButtonElement, label: string): boolean {
   if (button.dataset.confirmed === "true") return true;
+  const originalLabel = button.textContent ?? "";
   button.dataset.confirmed = "true";
+  button.dataset.originalLabel = originalLabel;
   button.textContent = label;
+  const input = document.createElement("input");
+  input.className = "admin-action-reason";
+  input.type = "text";
+  input.placeholder = "Motivo";
+  input.dataset.adminActionReason = "true";
+  button.insertAdjacentElement("afterend", input);
+  input.focus();
   window.setTimeout(() => {
     if (button.isConnected && button.dataset.confirmed === "true") {
       button.dataset.confirmed = "false";
-      button.textContent = "Eliminar";
+      button.textContent = button.dataset.originalLabel ?? originalLabel;
+      button.parentElement?.querySelector<HTMLInputElement>("[data-admin-action-reason]")?.remove();
     }
-  }, 3000);
+  }, 7000);
   return false;
+}
+
+function readInlineReason(button: HTMLButtonElement): string | undefined {
+  const reason = button.parentElement
+    ?.querySelector<HTMLInputElement>("[data-admin-action-reason]")
+    ?.value.trim();
+  return reason || undefined;
 }
