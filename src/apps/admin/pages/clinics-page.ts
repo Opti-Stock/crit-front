@@ -79,6 +79,11 @@ export async function mountClinicsPage(
               render: (clinic) =>
                 clinic.status === "active" ? "Activa" : "Inactiva",
             },
+            {
+              header: "Acciones",
+              render: (clinic) =>
+                `<button class="secondary-action" type="button" data-delete-clinic-id="${escapeHtml(clinic.id)}">Eliminar</button>`,
+            },
           ],
           clinics,
         )}
@@ -107,6 +112,24 @@ export async function mountClinicsPage(
             ),
           );
       });
+
+    root.querySelectorAll<HTMLButtonElement>("[data-delete-clinic-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const clinicId = button.dataset.deleteClinicId;
+        if (!clinicId) return;
+        const confirmed = window.confirm("¿Eliminar esta clinica? Tambien se ocultaran sus consultorios.");
+        if (!confirmed) return;
+        void clinicsService
+          .delete(clinicId)
+          .then(() => mountClinicsPage(root, "Clinica eliminada."))
+          .catch((error) =>
+            mountClinicsPage(
+              root,
+              error instanceof Error ? error.message : "No se pudo eliminar la clinica.",
+            ),
+          );
+      });
+    });
   } catch (error) {
     root.innerHTML = `
       <section class="app-panel">

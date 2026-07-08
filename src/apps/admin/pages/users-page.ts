@@ -48,10 +48,10 @@ export async function mountUsersPage(
           <label>Rol
             <select name="roleId" required>
               <option value="">Selecciona un rol</option>
-              ${roles.map((role) => `<option value="${escapeHtml(role.id)}">${escapeHtml(role.name)}</option>`).join("")}
+              ${roles.map((role) => `<option value="${escapeHtml(role.id)}" data-role-name="${escapeHtml(role.name)}">${escapeHtml(role.name)}</option>`).join("")}
             </select>
           </label>
-          <label>Especialidad
+          <label data-specialty-field hidden>Especialidad
             <input name="specialty" placeholder="Opcional para medico o terapeuta" />
           </label>
           <label>Acceso a clinicas
@@ -85,6 +85,11 @@ export async function mountUsersPage(
                 user.status === "active"
                   ? "Activo"
                   : "Inactivo",
+            },
+            {
+              header: "Acciones",
+              render: (user) =>
+                `<button class="secondary-action" type="button" data-delete-user-id="${escapeHtml(user.id)}">Eliminar</button>`,
             },
           ],
           users,
@@ -122,6 +127,39 @@ export async function mountUsersPage(
             ),
           );
       });
+
+    const roleSelect = root.querySelector<HTMLSelectElement>('select[name="roleId"]');
+    const specialtyField = root.querySelector<HTMLElement>("[data-specialty-field]");
+    const syncSpecialtyVisibility = () => {
+      const selected = roleSelect?.selectedOptions[0];
+      const roleName = selected?.dataset.roleName ?? selected?.textContent ?? "";
+      const needsSpecialty = ["medico", "terapeuta", "coordinador"].includes(roleName);
+      specialtyField?.toggleAttribute("hidden", !needsSpecialty);
+      if (!needsSpecialty) {
+        const input = specialtyField?.querySelector<HTMLInputElement>('input[name="specialty"]');
+        if (input) input.value = "";
+      }
+    };
+    roleSelect?.addEventListener("change", syncSpecialtyVisibility);
+    syncSpecialtyVisibility();
+
+    root.querySelectorAll<HTMLButtonElement>("[data-delete-user-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const userId = button.dataset.deleteUserId;
+        if (!userId) return;
+        const confirmed = window.confirm("¿Eliminar este usuario? Se desactivara y dejara de aparecer en administracion.");
+        if (!confirmed) return;
+        void usersService
+          .delete(userId)
+          .then(() => mountUsersPage(root, "Usuario eliminado."))
+          .catch((error) =>
+            mountUsersPage(
+              root,
+              error instanceof Error ? error.message : "No se pudo eliminar el usuario.",
+            ),
+          );
+      });
+    });
   } catch (error) {
     root.innerHTML = `
       <section class="app-panel">

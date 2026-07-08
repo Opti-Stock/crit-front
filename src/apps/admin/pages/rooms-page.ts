@@ -76,6 +76,11 @@ export async function mountRoomsPage(
               header: "Estado",
               render: (room) => (room.status === "active" ? "Activo" : "Inactivo"),
             },
+            {
+              header: "Acciones",
+              render: (room) =>
+                `<button class="secondary-action" type="button" data-delete-room-id="${escapeHtml(room.id)}">Eliminar</button>`,
+            },
           ],
           rooms,
         )}
@@ -105,6 +110,24 @@ export async function mountRoomsPage(
             ),
           );
       });
+
+    root.querySelectorAll<HTMLButtonElement>("[data-delete-room-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const roomId = button.dataset.deleteRoomId;
+        if (!roomId) return;
+        const confirmed = window.confirm("¿Eliminar este consultorio?");
+        if (!confirmed) return;
+        void roomsService
+          .delete(roomId)
+          .then(() => mountRoomsPage(root, "Consultorio eliminado."))
+          .catch((error) =>
+            mountRoomsPage(
+              root,
+              error instanceof Error ? error.message : "No se pudo eliminar el consultorio.",
+            ),
+          );
+      });
+    });
   } catch (error) {
     root.innerHTML = `
       <section class="app-panel">

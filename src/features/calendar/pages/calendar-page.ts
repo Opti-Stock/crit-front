@@ -223,7 +223,7 @@ function render(root: HTMLElement, state: CalendarState): void {
       </header>
       ${renderToolbar(state)}
       ${state.message ? renderCalendarAlert(state.message) : ""}
-      <div class="calendar-workspace">
+      <div class="calendar-workspace${state.isFiltersCollapsed ? " calendar-workspace--full" : ""}">
         ${state.isFiltersCollapsed ? "" : renderSidebar(state, calendarAppointments)}
         <div class="calendar-main${state.showCreateForm ? " calendar-main--with-form" : ""}">
           ${state.showCreateForm ? renderCreateAppointmentPanel(state) : ""}

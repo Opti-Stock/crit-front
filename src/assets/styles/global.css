@@ -1754,6 +1754,10 @@ button:disabled {
   overflow: hidden;
 }
 
+.calendar-workspace--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .calendar-sidebar,
 .calendar-main,
 .calendar-grid-card,
