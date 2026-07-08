@@ -11,12 +11,14 @@ export interface CreateRoomInput {
 }
 
 class RoomsService {
-  async getAll(): Promise<readonly RoomSummary[]> {
+  async getAll(options: { includeDeleted?: boolean } = {}): Promise<readonly RoomSummary[]> {
     if (appConfig.adminMocksEnabled) {
       return mockRooms;
     }
 
-    return adminApiClient.request<readonly RoomDto[]>("/rooms");
+    return adminApiClient.request<readonly RoomDto[]>("/rooms", {
+      query: options.includeDeleted ? { includeDeleted: true } : undefined,
+    });
   }
 
   async create(input: CreateRoomInput): Promise<RoomSummary> {
@@ -47,6 +49,16 @@ class RoomsService {
 
     await adminApiClient.request<void>(`/rooms/${encodeURIComponent(roomId)}`, {
       method: "DELETE",
+    });
+  }
+
+  async restore(roomId: string): Promise<RoomSummary> {
+    if (appConfig.adminMocksEnabled) {
+      throw new Error("Restore is unavailable with admin mocks enabled.");
+    }
+
+    return adminApiClient.request<RoomDto>(`/rooms/${encodeURIComponent(roomId)}/restore`, {
+      method: "POST",
     });
   }
 }

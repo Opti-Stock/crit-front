@@ -5,6 +5,7 @@ export interface UserSummary {
   status: "active" | "inactive";
   roles: { id: string; name: string }[];
   clinicAccess?: { clinicId: string; clinicName: string; accessLevel: "standard" | "manage" }[];
+  deletedAt?: string | null;
 }
 
 export interface RoleSummary {
@@ -19,6 +20,7 @@ export interface ClinicSummary {
   status: "active" | "inactive";
   specialization?: string | null;
   capacity?: number | null;
+  deletedAt?: string | null;
 }
 
 export interface RoomSummary {
@@ -28,6 +30,7 @@ export interface RoomSummary {
   name: string;
   capacity?: number | null;
   status: "active" | "inactive";
+  deletedAt?: string | null;
 }
 
 export interface CollaboratorSummary {

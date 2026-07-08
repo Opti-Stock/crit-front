@@ -5,4 +5,5 @@ export interface UserDto {
   status: "active" | "inactive";
   roles: { id: string; name: string }[];
   clinicAccess?: { clinicId: string; clinicName: string; accessLevel: "standard" | "manage" }[];
+  deletedAt?: string | null;
 }
