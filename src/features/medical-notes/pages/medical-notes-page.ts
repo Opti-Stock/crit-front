@@ -15,6 +15,7 @@ interface MedicalNotesState {
   selectedPatientId: string;
   patientQuery: string;
   message: string | null;
+  messageTone: "success" | "error" | null;
   isLoading: boolean;
   currentCollaboratorId: string | null;
   scopeFilter: "all" | "mine" | "area";
@@ -28,6 +29,7 @@ export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
     selectedPatientId: "",
     patientQuery: "",
     message: null,
+    messageTone: null,
     isLoading: true,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
     scopeFilter: "all",
@@ -36,7 +38,12 @@ export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
   void load(root, state, role);
 }
 
-async function load(root: HTMLElement, state: MedicalNotesState, role?: UserRole): Promise<void> {
+async function load(
+  root: HTMLElement,
+  state: MedicalNotesState,
+  role?: UserRole,
+  options: { preserveMessage?: boolean } = {},
+): Promise<void> {
   try {
     const range = todayRange();
     const collaboratorId = state.currentCollaboratorId ?? undefined;
@@ -51,9 +58,13 @@ async function load(root: HTMLElement, state: MedicalNotesState, role?: UserRole
     state.appointments = appointments.data;
     state.notes = notes.data;
     state.selectedPatientId ||= getPatients(state)[0]?.id ?? "";
-    state.message = null;
+    if (!options.preserveMessage) {
+      state.message = null;
+      state.messageTone = null;
+    }
   } catch (error) {
     state.message = error instanceof Error ? error.message : "No se pudieron cargar notas.";
+    state.messageTone = "error";
   } finally {
     state.isLoading = false;
     render(root, state, role ?? "admin");
@@ -62,14 +73,14 @@ async function load(root: HTMLElement, state: MedicalNotesState, role?: UserRole
 
 function render(root: HTMLElement, state: MedicalNotesState, role: UserRole): void {
   root.innerHTML = `
-    <section class="feature-page">
+    <section class="feature-page medical-notes-page">
       <header class="feature-header">
         <div>
           <p class="app-eyebrow">Notas medicas</p>
           <h2>Historial clinico por paciente</h2>
         </div>
       </header>
-      ${state.message ? `<p class="inline-alert">${escapeHtml(state.message)}</p>` : ""}
+      ${renderMedicalNoteAlert(state)}
       ${
         state.isLoading
           ? `<p class="empty-state">Cargando notas...</p>`
@@ -78,6 +89,17 @@ function render(root: HTMLElement, state: MedicalNotesState, role: UserRole): vo
     </section>
   `;
   bindEvents(root, state, role);
+}
+
+function renderMedicalNoteAlert(state: MedicalNotesState): string {
+  if (!state.message) return "";
+
+  const tone = state.messageTone ?? "error";
+  return `
+    <p class="medical-note-alert medical-note-alert--${tone}" role="${tone === "error" ? "alert" : "status"}">
+      ${escapeHtml(state.message)}
+    </p>
+  `;
 }
 
 function renderMedicalNotesChat(state: MedicalNotesState, role: UserRole): string {
@@ -332,6 +354,7 @@ async function createNote(
 ): Promise<void> {
   if (!values.appointmentId || !values.summary.trim()) {
     state.message = "Selecciona una cita y captura el resumen.";
+    state.messageTone = "error";
     render(root, state, role);
     return;
   }
@@ -344,11 +367,14 @@ async function createNote(
       },
       formatVersion: "1.0",
     });
+    state.message = "Nota médica guardada correctamente.";
+    state.messageTone = "success";
     state.isLoading = true;
     render(root, state, role);
-    await load(root, state, role);
+    await load(root, state, role, { preserveMessage: true });
   } catch (error) {
     state.message = error instanceof Error ? error.message : "No se pudo guardar la nota.";
+    state.messageTone = "error";
     render(root, state, role);
   }
 }

@@ -179,8 +179,8 @@ function renderNotificationCard(item: NotificationSummary): string {
         }
         ${
           item.readAt
-            ? `<button class="secondary-action" type="button" data-notification-unread>Marcar no leida</button>`
-            : `<button class="secondary-action" type="button" data-notification-read>Marcar leida</button>`
+            ? `<button class="notification-action notification-action--unread" type="button" data-notification-unread><span aria-hidden="true">●</span><span>Marcar como no leída</span></button>`
+            : `<button class="notification-action notification-action--read" type="button" data-notification-read><span aria-hidden="true">✓</span><span>Marcar como leída</span></button>`
         }
       </div>
     </article>

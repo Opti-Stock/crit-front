@@ -66,6 +66,8 @@ const CALENDAR_VIEW_OPTIONS: readonly CalendarViewMode[] = [
 const PIXELS_PER_MINUTE = 1.2;
 const APPOINTMENT_TIME_STEP_MINUTES = 5;
 const APPOINTMENT_TIME_STEP_SECONDS = APPOINTMENT_TIME_STEP_MINUTES * 60;
+const DEFAULT_PRE_SESSION_MINUTES = 5;
+const DEFAULT_POST_SESSION_MINUTES = 40;
 const PATIENT_SEARCH_DEBOUNCE_MS = 300;
 const PATIENT_SEARCH_PAGE_SIZE = 10;
 
@@ -288,8 +290,6 @@ function renderForm(state: CalendarState): string {
       ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes)}
       <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultStart)}" required /></label>
       <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultEnd)}" required /></label>
-      <label>Pre sesion<input name="preSessionMinutes" type="number" min="0" value="5" /></label>
-      <label>Post sesion<input name="postSessionMinutes" type="number" min="0" value="40" /></label>
       <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Creando..." : "Crear cita"}</button>
     </form>
   `;
@@ -551,8 +551,8 @@ function renderAppointmentBlock(
   const start = positioned.startsAt;
   const end = positioned.endsAt;
   const status = getCalendarStatusConfig(item.visualState);
-  const isCompact = positioned.durationMinutes < 45;
-  const hasMeta = positioned.durationMinutes >= 60;
+  const isCompact = positioned.durationMinutes < 60;
+  const hasMeta = positioned.durationMinutes >= 90;
   const classes = [
     "calendar-appointment",
     `calendar-appointment--${status.tone}`,
@@ -560,12 +560,17 @@ function renderAppointmentBlock(
   ]
     .filter(Boolean)
     .join(" ");
+  const title = [
+    `${formatTime(start)} - ${formatTime(end)}`,
+    appointment.patient.fullName,
+    appointment.appointmentType.name,
+  ].join(" | ");
 
   return `
-    <button class="${classes}" type="button" data-appointment-id="${escapeHtml(appointment.id)}" style="top: ${positioned.topPx}px; height: ${positioned.heightPx}px; left: calc(${positioned.leftPercent}% + 4px); width: calc(${positioned.widthPercent}% - 8px);">
+    <button class="${classes}" type="button" data-appointment-id="${escapeHtml(appointment.id)}" title="${escapeHtml(title)}" style="top: ${positioned.topPx}px; height: ${positioned.heightPx}px; left: calc(${positioned.leftPercent}% + 4px); width: calc(${positioned.widthPercent}% - 8px);">
       <span class="calendar-appointment__time">${escapeHtml(formatTime(start))} - ${escapeHtml(formatTime(end))}</span>
-      <strong>${escapeHtml(appointment.patient.fullName)}</strong>
-      ${isCompact ? "" : `<span class="calendar-appointment__secondary">${escapeHtml(appointment.appointmentType.name)}</span>`}
+      <strong class="calendar-appointment__patient">${escapeHtml(appointment.patient.fullName)}</strong>
+      ${isCompact ? "" : `<span class="calendar-appointment__therapy">${escapeHtml(appointment.appointmentType.name)}</span>`}
       ${hasMeta ? `<span class="calendar-appointment__meta">${escapeHtml(appointment.collaborator.fullName)} · ${escapeHtml(appointment.room.name)}</span>` : ""}
     </button>
   `;
@@ -1301,8 +1306,8 @@ async function createAppointmentFromForm(
       appointmentTypeId: String(data.get("appointmentTypeId")),
       startsAt: startsAt.toISOString(),
       endsAt: endsAt.toISOString(),
-      preSessionMinutes: Number(data.get("preSessionMinutes") ?? 0),
-      postSessionMinutes: Number(data.get("postSessionMinutes") ?? 0),
+      preSessionMinutes: DEFAULT_PRE_SESSION_MINUTES,
+      postSessionMinutes: DEFAULT_POST_SESSION_MINUTES,
     });
     state.isLoading = true;
     state.isSaving = false;
