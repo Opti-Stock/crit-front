@@ -686,20 +686,19 @@ function renderDetailPanel(
         <div><dt>Tipo</dt><dd>${escapeHtml(appointment.appointmentType.name)}</dd></div>
         <div><dt>Profesional</dt><dd>${escapeHtml(appointment.collaborator.fullName)}</dd></div>
         <div><dt>Cuarto</dt><dd>${escapeHtml(appointment.room.name)}</dd></div>
-        <div><dt>Estado cita</dt><dd>${escapeHtml(appointment.status)}</dd></div>
-        <div><dt>Asistencia</dt><dd><span class="calendar-status calendar-status--${status.tone}"><span aria-hidden="true"></span>${escapeHtml(status.label)}</span></dd></div>
+        <div><dt>Estado cita</dt><dd><span class="calendar-status calendar-status--${status.tone}"><span aria-hidden="true"></span>${escapeHtml(status.label)}</span></dd></div>
         <div><dt>Check-in</dt><dd>${escapeHtml(checkInLabel)}</dd></div>
       </dl>
       <div class="calendar-detail-panel__actions">
         ${
           canManualCheckIn
-            ? `<button type="button" data-calendar-action="manual-checkin" data-checkin-appointment-id="${escapeHtml(appointment.id)}">Check-in manual</button>`
-            : `<button type="button" disabled>${appointment.isCheckedIn ? "Check-in registrado" : "Check-in manual no disponible"}</button>`
+            ? `<button type="button" data-calendar-action="manual-checkin" data-checkin-appointment-id="${escapeHtml(appointment.id)}">Check-in</button>`
+            : `<button type="button" disabled>${appointment.isCheckedIn ? "Check-in" : "Check-in no disponible"}</button>`
         }
         ${
           canOperate
             ? `
-              <button class="secondary-action" type="button" data-calendar-action="reschedule-appointment" data-appointment-state-id="${escapeHtml(appointment.id)}">Marcar reagendada</button>
+              <button class="secondary-action" type="button" data-calendar-action="reschedule-appointment" data-appointment-state-id="${escapeHtml(appointment.id)}">Reagendar</button>
               <button class="secondary-action" type="button" data-calendar-action="cancel-appointment" data-appointment-state-id="${escapeHtml(appointment.id)}">Cancelar cita</button>
             `
             : `<button class="secondary-action" type="button" disabled>Vista de solo lectura</button>`
