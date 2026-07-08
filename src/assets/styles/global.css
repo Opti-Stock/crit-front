@@ -508,32 +508,116 @@ button:disabled,
 }
 
 .attendance-card {
+  position: relative;
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  grid-template-columns: 6px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
   border: 1px solid #d8dee5;
-  border-left-width: 6px;
   border-radius: 8px;
   background: #ffffff;
 }
 
 .attendance-card--success {
-  border-left-color: #15803d;
   background: linear-gradient(90deg, #f0fdf4 0, #ffffff 26%);
 }
 
 .attendance-card--warning {
-  border-left-color: #b7791f;
   background: linear-gradient(90deg, #fff8db 0, #ffffff 26%);
 }
 
 .attendance-card--muted {
-  border-left-color: #6b7280;
   background: linear-gradient(90deg, #f3f4f6 0, #ffffff 26%);
 }
 
-.attendance-card--neutral {
-  border-left-color: #cad3dc;
+.attendance-card__status-bar {
+  width: 6px;
+  background: #cad3dc;
+}
+
+.attendance-card--success .attendance-card__status-bar {
+  background: #15803d;
+}
+
+.attendance-card--warning .attendance-card__status-bar {
+  background: #b7791f;
+}
+
+.attendance-card--muted .attendance-card__status-bar {
+  background: #6b7280;
+}
+
+.attendance-card--neutral .attendance-card__status-bar {
+  background: #cad3dc;
+}
+
+.attendance-card__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 18px;
+  align-items: start;
+  min-width: 0;
+  padding: 16px;
+}
+
+.attendance-card__info {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.attendance-card__time {
+  margin: 0;
+  color: #607080;
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.attendance-card__patient {
+  min-width: 0;
+  margin: 0;
+  color: #17202a;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.attendance-card__details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.attendance-card__details div {
+  min-width: 0;
+}
+
+.attendance-card__details dt {
+  margin: 0 0 3px;
+  color: #607080;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.attendance-card__details dd {
+  min-width: 0;
+  margin: 0;
+  color: #17202a;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.attendance-card__actions-panel {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
 }
 
 .attendance-card__header,
@@ -549,7 +633,8 @@ button:disabled,
   margin: 0;
 }
 
-.attendance-status {
+.attendance-status,
+.attendance-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -563,7 +648,8 @@ button:disabled,
   line-height: 1.2;
 }
 
-.attendance-status span {
+.attendance-status span,
+.attendance-status-badge span {
   display: inline-grid;
   width: 24px;
   min-width: 24px;
@@ -573,55 +659,63 @@ button:disabled,
   font-size: 0.64rem;
 }
 
-.attendance-status--success {
+.attendance-status--success,
+.attendance-status-badge--success {
   border-color: #86efac;
   color: #14532d;
   background: #f0fdf4;
 }
 
-.attendance-status--success span {
+.attendance-status--success span,
+.attendance-status-badge--success span {
   color: #ffffff;
   background: #15803d;
 }
 
-.attendance-status--warning {
+.attendance-status--warning,
+.attendance-status-badge--warning {
   border-color: #f5d477;
   color: #5f3f00;
   background: #fff8db;
 }
 
-.attendance-status--warning span {
+.attendance-status--warning span,
+.attendance-status-badge--warning span {
   color: #ffffff;
   background: #b7791f;
 }
 
-.attendance-status--muted {
+.attendance-status--muted,
+.attendance-status-badge--muted {
   border-color: #c7ced8;
   color: #374151;
   background: #f3f4f6;
 }
 
-.attendance-status--muted span {
+.attendance-status--muted span,
+.attendance-status-badge--muted span {
   color: #ffffff;
   background: #6b7280;
 }
 
-.attendance-status--neutral {
+.attendance-status--neutral,
+.attendance-status-badge--neutral {
   border-color: #cad3dc;
   color: #354454;
   background: #f8fafc;
 }
 
-.attendance-status--neutral span {
+.attendance-status--neutral span,
+.attendance-status-badge--neutral span {
   color: #354454;
   background: #e8edf2;
 }
 
-.attendance-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 12px;
+.attendance-card__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: min(320px, 100%);
 }
 
 .attendance-action-button,
@@ -629,11 +723,13 @@ button:disabled,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 12px 16px;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 9px 10px;
   border-width: 1px;
-  border-radius: 18px;
+  border-radius: 14px;
+  font-size: 0.86rem;
   font-weight: 900;
   line-height: 1.15;
   white-space: normal;
@@ -646,18 +742,18 @@ button:disabled,
 }
 
 .attendance-action-button {
-  flex: 1 1 132px;
+  width: 100%;
 }
 
 .attendance-action-button__icon,
 .attendance-note-action__icon {
   display: inline-grid;
   place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   line-height: 1;
 }
 
@@ -695,8 +791,8 @@ button:disabled,
 }
 
 .attendance-note-action {
-  flex: 1 1 220px;
-  margin-left: auto;
+  grid-column: 1 / -1;
+  width: 100%;
   border-color: #5b4bb7;
   color: #ffffff;
   background: #5b4bb7;
@@ -818,7 +914,6 @@ button:disabled,
   }
 
   .attendance-header,
-  .attendance-card__header,
   .attendance-note-form__header {
     align-items: stretch;
     flex-direction: column;
@@ -828,12 +923,26 @@ button:disabled,
     grid-template-columns: 1fr;
   }
 
-  .attendance-actions {
-    display: grid;
+  .attendance-card__body {
     grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 14px;
   }
 
-  .attendance-actions button {
+  .attendance-card__actions-panel {
+    justify-items: stretch;
+  }
+
+  .attendance-status-badge {
+    justify-self: start;
+  }
+
+  .attendance-card__actions {
+    width: 100%;
+    max-width: none;
+  }
+
+  .attendance-card__actions button {
     width: 100%;
   }
 
@@ -850,6 +959,12 @@ button:disabled,
     right: 16px;
     bottom: 16px;
     max-width: calc(100vw - 32px);
+  }
+}
+
+@media (max-width: 520px) {
+  .attendance-card__actions {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2113,10 +2228,11 @@ button:disabled {
   z-index: 2;
   display: grid;
   align-content: start;
-  gap: 3px;
+  gap: 4px;
   overflow: hidden;
+  min-width: 0;
   min-height: 18px;
-  padding: 5px 7px 5px 8px;
+  padding: 8px 10px;
   border: 1px solid #c8d1dc;
   border-left-width: 4px;
   border-radius: 6px;
@@ -2146,10 +2262,10 @@ button:disabled {
 
 .calendar-appointment--compact {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 2px 5px;
-  padding-block: 3px;
+  gap: 2px;
+  padding: 5px 7px;
 }
 
 .calendar-appointment--info {
@@ -2198,54 +2314,52 @@ button:disabled {
 }
 
 .calendar-appointment__time,
+.calendar-appointment__patient,
+.calendar-appointment__therapy,
+.calendar-appointment__meta {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  word-break: normal;
+  white-space: normal;
+}
+
+.calendar-appointment__time,
 .calendar-appointment__meta {
   color: currentColor;
   font-size: 0.76rem;
   font-weight: 700;
-  line-height: 1.18;
+  line-height: 1.15;
   opacity: 0.82;
 }
 
-.calendar-appointment strong {
-  overflow: hidden;
+.calendar-appointment__patient {
   font-size: 0.9rem;
-  line-height: 1.18;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: normal;
+  font-weight: 700;
+  line-height: 1.15;
 }
 
-.calendar-appointment span {
-  overflow: hidden;
-  font-size: 0.78rem;
-  line-height: 1.18;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.calendar-appointment__patient,
-.calendar-appointment__secondary {
-  display: block;
-  min-width: 0;
-}
-
-.calendar-appointment--compact .calendar-appointment__time,
-.calendar-appointment--compact strong {
-  font-size: 0.74rem;
-  line-height: 1.1;
+.calendar-appointment__therapy {
+  font-size: 0.85rem;
+  line-height: 1.15;
 }
 
 .calendar-appointment--compact .calendar-appointment__time {
+  font-size: 0.74rem;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
-.calendar-appointment--compact strong {
-  min-width: 0;
+.calendar-appointment--compact .calendar-appointment__patient {
   display: -webkit-box;
   overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.1;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
 }
 
 .calendar-status {

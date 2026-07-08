@@ -298,50 +298,53 @@ function renderRow(
 
   return `
     <article class="attendance-card attendance-card--${config.tone}" data-appointment-id="${escapeHtml(appointment.id)}">
-      <div class="attendance-card__header">
-        <div>
-          <p class="data-card__meta">${escapeHtml(formatTime(appointment.startsAt))} - ${escapeHtml(formatTime(appointment.endsAt))}</p>
-          <h3>${escapeHtml(appointment.patient.fullName)}</h3>
+      <div class="attendance-card__status-bar" aria-hidden="true"></div>
+      <div class="attendance-card__body">
+        <div class="attendance-card__info">
+          <p class="attendance-card__time">${escapeHtml(formatTime(appointment.startsAt))} - ${escapeHtml(formatTime(appointment.endsAt))}</p>
+          <h3 class="attendance-card__patient">${escapeHtml(appointment.patient.fullName)}</h3>
+          <dl class="attendance-card__details">
+            <div><dt>Terapia</dt><dd>${escapeHtml(appointment.appointmentType.name)}</dd></div>
+            <div><dt>Area</dt><dd>${escapeHtml(appointment.clinic.name)}</dd></div>
+            <div><dt>Sala</dt><dd>${escapeHtml(appointment.room.name)}</dd></div>
+            <div><dt>Terapeuta</dt><dd>${escapeHtml(appointment.collaborator.fullName)}</dd></div>
+            <div><dt>Check-in</dt><dd>${escapeHtml(getCheckInLabel(row))}</dd></div>
+            <div><dt>Nota medica</dt><dd>${escapeHtml(row.medicalNote ? "Registrada" : "Pendiente")}</dd></div>
+          </dl>
+          ${status === "auto_absent_due" ? `<p class="hint-text">La inasistencia automatica requiere trazabilidad backend antes de registrarse.</p>` : ""}
+          ${renderReadOnlyHint(row, role)}
         </div>
-        <span class="attendance-status attendance-status--${config.tone}">
-          <span aria-hidden="true">${escapeHtml(config.icon)}</span>
-          ${escapeHtml(config.label)}
-        </span>
+        <aside class="attendance-card__actions-panel" aria-label="Acciones de asistencia">
+          <span class="attendance-status-badge attendance-status-badge--${config.tone}">
+            <span aria-hidden="true">${escapeHtml(config.icon)}</span>
+            ${escapeHtml(config.label)}
+          </span>
+          <div class="attendance-card__actions">
+            ${
+              canRegister
+                ? `
+                  <button class="attendance-action-button attendance-action-button--present" type="button" data-attendance-action="present" aria-label="Registrar asistencia" ${state.isSaving ? "disabled" : ""}>
+                    <span class="attendance-action-button__icon" aria-hidden="true">✓</span>
+                    <span>Asistencia</span>
+                  </button>
+                  <button class="attendance-action-button attendance-action-button--absent" type="button" data-attendance-action="absent" aria-label="Registrar inasistencia" ${state.isSaving ? "disabled" : ""}>
+                    <span class="attendance-action-button__icon" aria-hidden="true">×</span>
+                    <span>Inasistencia</span>
+                  </button>
+                  <button class="attendance-action-button attendance-action-button--rescheduled" type="button" data-attendance-action="rescheduled" aria-label="Reagendar cita" ${state.isSaving ? "disabled" : ""}>
+                    <span class="attendance-action-button__icon" aria-hidden="true">▦</span>
+                    <span>Reagendar</span>
+                  </button>
+                `
+                : ""
+            }
+            <button class="attendance-note-action" type="button" data-medical-note-action aria-label="${escapeHtml(noteLabel)}" ${canAddNote ? "" : "disabled"}>
+              <span class="attendance-note-action__icon" aria-hidden="true">+</span>
+              <span>${escapeHtml(noteLabel)}</span>
+            </button>
+          </div>
+        </aside>
       </div>
-      <dl class="detail-grid attendance-detail-grid">
-        <div><dt>Terapia</dt><dd>${escapeHtml(appointment.appointmentType.name)}</dd></div>
-        <div><dt>Area</dt><dd>${escapeHtml(appointment.clinic.name)}</dd></div>
-        <div><dt>Sala</dt><dd>${escapeHtml(appointment.room.name)}</dd></div>
-        <div><dt>Terapeuta</dt><dd>${escapeHtml(appointment.collaborator.fullName)}</dd></div>
-        <div><dt>Check-in</dt><dd>${escapeHtml(getCheckInLabel(row))}</dd></div>
-        <div><dt>Nota medica</dt><dd>${escapeHtml(row.medicalNote ? "Registrada" : "Pendiente")}</dd></div>
-      </dl>
-      ${status === "auto_absent_due" ? `<p class="hint-text">La inasistencia automatica requiere trazabilidad backend antes de registrarse.</p>` : ""}
-      <div class="attendance-actions">
-        ${
-          canRegister
-            ? `
-              <button class="attendance-action-button attendance-action-button--present" type="button" data-attendance-action="present" aria-label="Registrar asistencia" ${state.isSaving ? "disabled" : ""}>
-                <span class="attendance-action-button__icon" aria-hidden="true">✓</span>
-                <span>Asistencia</span>
-              </button>
-              <button class="attendance-action-button attendance-action-button--absent" type="button" data-attendance-action="absent" aria-label="Registrar inasistencia" ${state.isSaving ? "disabled" : ""}>
-                <span class="attendance-action-button__icon" aria-hidden="true">×</span>
-                <span>Inasistencia</span>
-              </button>
-              <button class="attendance-action-button attendance-action-button--rescheduled" type="button" data-attendance-action="rescheduled" aria-label="Reagendar cita" ${state.isSaving ? "disabled" : ""}>
-                <span class="attendance-action-button__icon" aria-hidden="true">▦</span>
-                <span>Reagendar</span>
-              </button>
-            `
-            : ""
-        }
-        <button class="attendance-note-action" type="button" data-medical-note-action aria-label="${escapeHtml(noteLabel)}" ${canAddNote ? "" : "disabled"}>
-          <span class="attendance-note-action__icon" aria-hidden="true">+</span>
-          <span>${escapeHtml(noteLabel)}</span>
-        </button>
-      </div>
-      ${renderReadOnlyHint(row, role)}
     </article>
   `;
 }
