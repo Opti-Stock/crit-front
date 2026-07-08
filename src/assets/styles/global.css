@@ -107,47 +107,57 @@ select {
   background: #ffffff;
 }
 
-.app-shell--admin .sidebar-brand {
+.app-shell--admin .admin-sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
-.app-shell--admin .sidebar-back-button {
+.app-shell--admin .admin-back-circle-button {
   display: inline-grid;
   place-items: center;
-  flex: 0 0 40px;
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
-  min-height: 40px;
+  flex: 0 0 44px;
+  flex-shrink: 0;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 6px solid #2b75b8;
   border-radius: 999px;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 1.2rem;
+  color: #2b75b8;
+  background-color: #8ed0ff;
+  cursor: pointer;
   line-height: 1;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease,
+    box-shadow 150ms ease;
 }
 
-.app-shell--admin .sidebar-back-button:hover {
-  border-color: #ffffff;
-  color: #17202a;
-  background: #ffffff;
+.app-shell--admin .admin-back-circle-button svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 3.5;
 }
 
-.app-shell--admin .sidebar-back-button:active {
-  transform: translateY(1px);
-  background: #dce4ec;
+.app-shell--admin .admin-back-circle-button:hover {
+  filter: brightness(0.95);
+  transform: translateX(-1px);
+  box-shadow: 0 6px 14px rgba(43, 117, 184, 0.26);
 }
 
-.app-shell--admin .sidebar-back-button:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.45);
-  outline-offset: 2px;
+.app-shell--admin .admin-back-circle-button:active {
+  transform: scale(0.96);
 }
 
-.app-shell--admin .sidebar-brand-title {
+.app-shell--admin .admin-back-circle-button:focus-visible {
+  outline: 3px solid rgba(142, 208, 255, 0.45);
+  outline-offset: 3px;
+}
+
+.app-shell--admin .admin-sidebar-title {
   min-width: 0;
   overflow: hidden;
   color: #ffffff;
