@@ -1,6 +1,13 @@
 import type { UserRole } from "../types/role.types";
 
-const CLINICAL_NOTES_ROLES: readonly UserRole[] = ["medico", "terapeuta"];
+const CLINICAL_NOTES_READ_ROLES: readonly UserRole[] = [
+  "admin",
+  "direccion",
+  "coordinador",
+  "medico",
+  "terapeuta",
+];
+const CLINICAL_NOTES_WRITE_ROLES: readonly UserRole[] = ["medico", "terapeuta"];
 const ADMIN_ENTRY_ROLES: readonly UserRole[] = ["admin"];
 const ATTENDANCE_ROLES: readonly UserRole[] = [
   "recepcion",
@@ -31,7 +38,7 @@ const AP_ROLES: readonly UserRole[] = ["personal_acompanamiento"];
 const APPOINTMENT_WRITE_ROLES: readonly UserRole[] = ["recepcion", "coordinador"];
 
 export function canAccessClinicalNotes(role: UserRole): boolean {
-  return CLINICAL_NOTES_ROLES.includes(role);
+  return CLINICAL_NOTES_READ_ROLES.includes(role);
 }
 
 export function canAccessAdminEntry(role: UserRole): boolean {
@@ -63,5 +70,5 @@ export function canWriteAppointments(role: UserRole): boolean {
 }
 
 export function canWriteMedicalNotes(role: UserRole): boolean {
-  return CLINICAL_NOTES_ROLES.includes(role);
+  return CLINICAL_NOTES_WRITE_ROLES.includes(role);
 }

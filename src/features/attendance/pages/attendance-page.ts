@@ -66,7 +66,7 @@ interface AttendanceState {
   realtimeMessage: string | null;
   currentUserId: string | null;
   currentCollaboratorId: string | null;
-  currentUserArea: string | null;
+  scopeFilter: "all" | "mine" | "area";
 }
 
 const CLINICAL_ATTENDANCE_ROLES: readonly UserRole[] = ["medico", "terapeuta"];
@@ -110,7 +110,7 @@ export function mountAttendancePage(root: HTMLElement, role: UserRole): void {
     realtimeMessage: null,
     currentUserId: session?.user?.id ?? null,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
-    currentUserArea: session?.user?.area ?? null,
+    scopeFilter: "all",
   };
 
   render(root, state, role);
@@ -220,7 +220,7 @@ function render(root: HTMLElement, state: AttendanceState, role: UserRole): void
       ${
         state.isLoading
           ? `<p class="empty-state">Cargando citas y asistencias...</p>`
-          : renderRows(rows, state, role)
+          : `<div data-attendance-results>${renderRows(rows, state, role)}</div>`
       }
       ${state.activeNote ? renderQuickMedicalNote(state) : ""}
       <button class="attendance-scan-button" type="button" title="${escapeHtml(ATTENDANCE_SCAN_CONTRACT)}" data-attendance-scan>
@@ -252,13 +252,8 @@ function renderToolbar(state: AttendanceState, role: UserRole): string {
 
   return `
     <section class="attendance-toolbar" aria-label="Filtros de asistencias">
-      <label>
-        Buscar paciente o folio
-        <input name="search" type="search" list="attendance-patient-options" value="${escapeHtml(state.search)}" placeholder="Escribe para buscar paciente..." data-attendance-search />
-        <datalist id="attendance-patient-options">
-          ${renderAttendancePatientOptions(state)}
-        </datalist>
-      </label>
+      ${renderPatientSearchCombobox(state)}
+      ${renderCoordinatorScopeFilter(state, role)}
       ${
         canQueryDates
           ? `
@@ -347,6 +342,46 @@ function renderReadOnlyHint(row: AttendanceViewModel, role: UserRole): string {
   return `<p class="hint-text">Vista de solo lectura para este rol. El registro clinico lo realizan medico o terapeuta responsable.</p>`;
 }
 
+function renderPatientSearchCombobox(state: AttendanceState): string {
+  return `
+    <div class="calendar-combobox-field" data-attendance-patient-combobox>
+      <label for="attendance-patient-search">Buscar paciente o folio</label>
+      <div class="calendar-combobox">
+        <input
+          id="attendance-patient-search"
+          name="search"
+          type="search"
+          value="${escapeHtml(state.search)}"
+          placeholder="Escribe para buscar paciente..."
+          autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="false"
+          aria-controls="attendance-patient-options"
+          data-attendance-search
+        />
+        <button class="calendar-combobox__clear" type="button" data-attendance-patient-clear aria-label="Limpiar paciente" ${state.search ? "" : "hidden"}>x</button>
+        <div id="attendance-patient-options" class="calendar-combobox__list" role="listbox"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCoordinatorScopeFilter(state: AttendanceState, role: UserRole): string {
+  if (role !== "coordinador") return "";
+
+  return `
+    <label>
+      Alcance
+      <select name="scopeFilter" data-attendance-scope-filter>
+        <option value="all" ${state.scopeFilter === "all" ? "selected" : ""}>Todas las citas del area</option>
+        <option value="mine" ${state.scopeFilter === "mine" ? "selected" : ""}>Solo mis citas</option>
+        <option value="area" ${state.scopeFilter === "area" ? "selected" : ""}>Solo equipo coordinado</option>
+      </select>
+    </label>
+  `;
+}
+
 function renderQuickMedicalNote(state: AttendanceState): string {
   const row = state.rows.find(
     (candidate) => candidate.appointment.id === state.activeNote?.appointmentId,
@@ -403,7 +438,60 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
     "input",
     (event) => {
       state.search = (event.currentTarget as HTMLInputElement).value;
-      render(root, state, role);
+      syncAttendancePatientOptions(root, state);
+      updateAttendanceResults(root, state, role);
+    },
+  );
+
+  root.querySelector<HTMLInputElement>("[data-attendance-search]")?.addEventListener(
+    "focus",
+    () => {
+      syncAttendancePatientOptions(root, state, true);
+    },
+  );
+
+  root.querySelector<HTMLElement>("[data-attendance-patient-combobox]")?.addEventListener(
+    "focusout",
+    (event) => {
+      const wrapper = event.currentTarget as HTMLElement;
+      window.setTimeout(() => {
+        if (!wrapper.contains(document.activeElement)) {
+          syncAttendancePatientOptions(root, state, false);
+        }
+      });
+    },
+  );
+
+  root.querySelector<HTMLElement>("[data-attendance-patient-combobox]")?.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const option = target.closest<HTMLButtonElement>("[data-attendance-patient-option]");
+      if (option) {
+        state.search = option.dataset.attendancePatientOption ?? "";
+        const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
+        if (input) input.value = state.search;
+        syncAttendancePatientOptions(root, state, false);
+        updateAttendanceResults(root, state, role);
+        return;
+      }
+      const clear = target.closest<HTMLButtonElement>("[data-attendance-patient-clear]");
+      if (clear) {
+        state.search = "";
+        const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
+        if (input) input.value = "";
+        syncAttendancePatientOptions(root, state, false);
+        updateAttendanceResults(root, state, role);
+      }
+    },
+  );
+
+  root.querySelector<HTMLSelectElement>("[data-attendance-scope-filter]")?.addEventListener(
+    "change",
+    (event) => {
+      state.scopeFilter = (event.currentTarget as HTMLSelectElement).value as AttendanceState["scopeFilter"];
+      updateAttendanceResults(root, state, role);
     },
   );
 
@@ -419,6 +507,17 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
     },
   );
 
+  root.querySelector<HTMLButtonElement>("[data-attendance-scan]")?.addEventListener(
+    "click",
+    () => {
+      window.location.assign(buildTherapeuticAttendanceScanUrl());
+    },
+  );
+
+  bindAttendanceCardEvents(root, state, role);
+}
+
+function bindAttendanceCardEvents(root: HTMLElement, state: AttendanceState, role: UserRole): void {
   root.querySelectorAll<HTMLButtonElement>("[data-attendance-action]").forEach(
     (button) => {
       button.addEventListener("click", () => {
@@ -476,12 +575,6 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
     },
   );
 
-  root.querySelector<HTMLButtonElement>("[data-attendance-scan]")?.addEventListener(
-    "click",
-    () => {
-      window.location.assign(buildTherapeuticAttendanceScanUrl());
-    },
-  );
 }
 
 async function registerAttendanceStatus(
@@ -654,10 +747,15 @@ async function deferMedicalNote(
 function getFilteredRows(state: AttendanceState): AttendanceViewModel[] {
   const search = state.search.trim().toLowerCase();
 
-  if (!search) return state.rows;
-
   return state.rows.filter((row) => {
     const appointment = row.appointment;
+    if (state.scopeFilter === "mine" && state.currentCollaboratorId) {
+      if (appointment.collaborator.id !== state.currentCollaboratorId) return false;
+    }
+    if (state.scopeFilter === "area" && state.currentCollaboratorId) {
+      if (appointment.collaborator.id === state.currentCollaboratorId) return false;
+    }
+    if (!search) return true;
     const haystack = [
       appointment.id,
       appointment.patient.fullName,
@@ -679,10 +777,6 @@ function isRowVisibleForRole(
 ): boolean {
   if (isClinicalAttendanceRole(role) && state.currentCollaboratorId) {
     return row.appointment.collaborator.id === state.currentCollaboratorId;
-  }
-
-  if (role === "coordinador" && state.currentUserArea) {
-    return matchesArea(row.appointment, state.currentUserArea);
   }
 
   return true;
@@ -742,40 +836,72 @@ function getCheckInLabel(row: AttendanceViewModel): string {
   return row.appointment.isCheckedIn ? "Con check-in general" : "Sin check-in general";
 }
 
-function matchesArea(appointment: AppointmentSummary, area: string): boolean {
-  const normalizedArea = area.trim().toLowerCase();
-
-  if (!normalizedArea) return true;
-
-  return (
-    appointment.clinic.id.toLowerCase() === normalizedArea ||
-    appointment.clinic.name.toLowerCase() === normalizedArea
-  );
-}
-
 function buildScopeMessage(state: AttendanceState, role: UserRole): string | null {
   if (isClinicalAttendanceRole(role) && !state.currentCollaboratorId) {
     return "La sesion actual no incluye collaboratorId; el filtro de terapeuta depende del backend.";
   }
 
-  if (role === "coordinador" && !state.currentUserArea) {
-    return "La sesion actual no incluye area; el backend debe limitar la vista del coordinador.";
-  }
-
   return null;
 }
 
-function renderAttendancePatientOptions(state: AttendanceState): string {
+function getAttendancePatientOptions(state: AttendanceState): string[] {
   const patients = new Map<string, string>();
 
   state.rows.forEach((row) => {
     patients.set(row.appointment.patient.id, row.appointment.patient.fullName);
   });
 
+  const query = state.search.trim().toLowerCase();
   return [...patients.values()]
+    .filter((patientName) => !query || patientName.toLowerCase().includes(query))
     .sort((left, right) => left.localeCompare(right, "es-MX"))
-    .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
+    .slice(0, 8);
+}
+
+function syncAttendancePatientOptions(
+  root: HTMLElement,
+  state: AttendanceState,
+  forceOpen?: boolean,
+): void {
+  const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
+  const list = root.querySelector<HTMLElement>("#attendance-patient-options");
+  const clear = root.querySelector<HTMLButtonElement>("[data-attendance-patient-clear]");
+  if (!input || !list) return;
+
+  const isOpen = forceOpen ?? document.activeElement === input;
+  input.setAttribute("aria-expanded", String(isOpen));
+  clear?.toggleAttribute("hidden", !state.search);
+  list.classList.toggle("calendar-combobox__list--open", isOpen);
+
+  if (!isOpen) {
+    list.innerHTML = "";
+    return;
+  }
+
+  const options = getAttendancePatientOptions(state);
+  if (!state.search.trim()) {
+    list.innerHTML = `<div class="calendar-combobox__state">Escribe para buscar pacientes.</div>`;
+    return;
+  }
+  if (options.length === 0) {
+    list.innerHTML = `<div class="calendar-combobox__state">Sin resultados.</div>`;
+    return;
+  }
+  list.innerHTML = options
+    .map((patientName) => `
+      <button class="calendar-combobox__option" type="button" role="option" data-attendance-patient-option="${escapeHtml(patientName)}">
+        <strong>${escapeHtml(patientName)}</strong>
+        <span>Paciente</span>
+      </button>
+    `)
     .join("");
+}
+
+function updateAttendanceResults(root: HTMLElement, state: AttendanceState, role: UserRole): void {
+  const results = root.querySelector<HTMLElement>("[data-attendance-results]");
+  if (!results) return;
+  results.innerHTML = renderRows(getFilteredRows(state), state, role);
+  bindAttendanceCardEvents(root, state, role);
 }
 
 function dayRange(inputDate: string): { from: string; to: string } {
