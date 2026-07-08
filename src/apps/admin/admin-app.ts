@@ -15,6 +15,7 @@ import { mountClinicsPage } from "./pages/clinics-page";
 import { mountRoomsPage } from "./pages/rooms-page";
 import { mountRolesPage } from "./pages/roles-page";
 import { mountUsersPage } from "./pages/users-page";
+import { mountAppointmentTypesPage } from "./pages/appointment-types-page";
 
 export function mountAdminApp(root: HTMLElement): void {
   const session = sessionService.getSession();
@@ -144,6 +145,10 @@ async function mountAdminView(
 
     case "rooms":
       await mountRoomsPage(root);
+      return;
+
+    case "appointment-types":
+      await mountAppointmentTypesPage(root);
       return;
 
     case "users":
