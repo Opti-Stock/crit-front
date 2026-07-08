@@ -224,7 +224,12 @@ function render(root: HTMLElement, state: HandoffState, role: UserRole): void {
       </div>
     </section>
   `;
-
+  const contenedor = document.querySelector('.contenedor-scroll');
+  // Para ir abajo automáticamente
+  if (contenedor != null){
+    contenedor.scrollTop = contenedor.scrollHeight;
+  }
+  
   bindEvents(root, state, role);
 }
 
@@ -677,6 +682,12 @@ function refreshHandoffMain(root: HTMLElement, state: HandoffState, role: UserRo
   main.innerHTML = renderConversation(state, role);
   bindHandoffConversationEvents(root, state, role);
   scheduleScrollToNote(root, state);
+
+  const contenedor = document.querySelector('.contenedor-scroll');
+  // Para ir abajo automáticamente
+  if (contenedor != null){
+    contenedor.scrollTop = contenedor.scrollHeight;
+  }
 }
 
 function bindHandoffConversationEvents(root: HTMLElement, state: HandoffState, role: UserRole): void {
