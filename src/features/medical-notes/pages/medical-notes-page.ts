@@ -17,6 +17,7 @@ interface MedicalNotesState {
   message: string | null;
   isLoading: boolean;
   currentCollaboratorId: string | null;
+  scopeFilter: "all" | "mine" | "area";
 }
 
 export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
@@ -29,6 +30,7 @@ export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
     message: null,
     isLoading: true,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
+    scopeFilter: "all",
   };
   render(root, state, role);
   void load(root, state, role);
@@ -88,24 +90,24 @@ function renderMedicalNotesChat(state: MedicalNotesState, role: UserRole): strin
 
   if (patients.length === 0) {
     return `
-      ${renderMedicalPatientFilter(state, allPatients)}
+      ${renderMedicalPatientFilter(state, role)}
       <p class="empty-state">No hay pacientes que coincidan con la busqueda.</p>
     `;
   }
 
   const patient = patients.find((candidate) => candidate.id === state.selectedPatientId) ?? patients[0];
-  const patientNotes = state.notes
+  const patientNotes = getScopedNotes(state)
     .filter((note) => note.patient.id === patient.id)
     .sort(
       (left, right) =>
         new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
     );
-  const patientAppointments = state.appointments.filter(
+  const patientAppointments = getScopedAppointments(state).filter(
     (appointment) => appointment.patient.id === patient.id,
   );
 
   return `
-    ${renderMedicalPatientFilter(state, allPatients)}
+    ${renderMedicalPatientFilter(state, role)}
     <div class="handoff-shell">
       <aside class="handoff-sidebar">
         <div class="handoff-patient-list" aria-label="Pacientes con notas medicas">
@@ -144,24 +146,46 @@ function renderMedicalNotesChat(state: MedicalNotesState, role: UserRole): strin
   `;
 }
 
-function renderMedicalPatientFilter(
-  state: MedicalNotesState,
-  patients: { id: string; fullName: string }[],
-): string {
+function renderMedicalPatientFilter(state: MedicalNotesState, role: UserRole): string {
   return `
     <section class="attendance-toolbar" aria-label="Filtro de notas medicas">
-      <label>
-        Buscar paciente
-        <input name="medicalPatientQuery" type="search" list="medical-patient-options" value="${escapeHtml(state.patientQuery)}" placeholder="Escribe para buscar paciente..." data-medical-patient-search />
-        <datalist id="medical-patient-options">
-          ${patients
-            .map((patient) => patient.fullName)
-            .sort((left, right) => left.localeCompare(right, "es-MX"))
-            .map((patientName) => `<option value="${escapeHtml(patientName)}"></option>`)
-            .join("")}
-        </datalist>
-      </label>
+      <div class="calendar-combobox-field" data-medical-patient-combobox>
+        <label for="medical-patient-search">Buscar paciente</label>
+        <div class="calendar-combobox">
+          <input
+            id="medical-patient-search"
+            name="medicalPatientQuery"
+            type="search"
+            value="${escapeHtml(state.patientQuery)}"
+            placeholder="Escribe para buscar paciente..."
+            autocomplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-controls="medical-patient-options"
+            data-medical-patient-search
+          />
+          <button class="calendar-combobox__clear" type="button" data-medical-patient-clear aria-label="Limpiar paciente" ${state.patientQuery ? "" : "hidden"}>x</button>
+          <div id="medical-patient-options" class="calendar-combobox__list" role="listbox"></div>
+        </div>
+      </div>
+      ${renderMedicalCoordinatorScopeFilter(state, role)}
     </section>
+  `;
+}
+
+function renderMedicalCoordinatorScopeFilter(state: MedicalNotesState, role: UserRole): string {
+  if (role !== "coordinador" || !state.currentCollaboratorId) return "";
+
+  return `
+    <label>
+      Alcance
+      <select name="medicalScopeFilter" data-medical-scope-filter>
+        <option value="all" ${state.scopeFilter === "all" ? "selected" : ""}>Todas las notas del area</option>
+        <option value="mine" ${state.scopeFilter === "mine" ? "selected" : ""}>Solo mis notas/citas</option>
+        <option value="area" ${state.scopeFilter === "area" ? "selected" : ""}>Solo equipo coordinado</option>
+      </select>
+    </label>
   `;
 }
 
@@ -240,7 +264,58 @@ function bindEvents(root: HTMLElement, state: MedicalNotesState, role: UserRole)
     "input",
     (event) => {
       state.patientQuery = (event.currentTarget as HTMLInputElement).value;
+      syncMedicalPatientOptions(root, state, true);
+    },
+  );
+
+  root.querySelector<HTMLInputElement>("[data-medical-patient-search]")?.addEventListener(
+    "focus",
+    () => {
+      syncMedicalPatientOptions(root, state, true);
+    },
+  );
+
+  root.querySelector<HTMLElement>("[data-medical-patient-combobox]")?.addEventListener(
+    "focusout",
+    (event) => {
+      const wrapper = event.currentTarget as HTMLElement;
+      window.setTimeout(() => {
+        if (!wrapper.contains(document.activeElement)) {
+          syncMedicalPatientOptions(root, state, false);
+        }
+      });
+    },
+  );
+
+  root.querySelector<HTMLSelectElement>("[data-medical-scope-filter]")?.addEventListener(
+    "change",
+    (event) => {
+      state.scopeFilter = (event.currentTarget as HTMLSelectElement).value as MedicalNotesState["scopeFilter"];
+      state.selectedPatientId = "";
       render(root, state, role);
+    },
+  );
+
+  root.querySelector<HTMLElement>("[data-medical-patient-combobox]")?.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const option = target.closest<HTMLButtonElement>("[data-medical-patient-option]");
+      if (option) {
+        state.selectedPatientId = option.dataset.medicalPatientId ?? "";
+        state.patientQuery = option.dataset.medicalPatientName ?? "";
+        render(root, state, role);
+        return;
+      }
+
+      const clear = target.closest<HTMLButtonElement>("[data-medical-patient-clear]");
+      if (clear) {
+        state.patientQuery = "";
+        state.selectedPatientId = getPatients(state)[0]?.id ?? "";
+        render(root, state, role);
+      }
     },
   );
 
@@ -281,10 +356,10 @@ async function createNote(
 function getPatients(state: MedicalNotesState): { id: string; fullName: string }[] {
   const byId = new Map<string, { id: string; fullName: string }>();
 
-  state.appointments.forEach((appointment) =>
+  getScopedAppointments(state).forEach((appointment) =>
     byId.set(appointment.patient.id, appointment.patient),
   );
-  state.notes.forEach((note) => byId.set(note.patient.id, note.patient));
+  getScopedNotes(state).forEach((note) => byId.set(note.patient.id, note.patient));
 
   return [...byId.values()].sort((left, right) =>
     left.fullName.localeCompare(right.fullName, "es-MX"),
@@ -304,6 +379,68 @@ function getFilteredPatients(
       normalizeText(patient.fullName).includes(query) ||
       patient.id.toLowerCase().includes(query),
   );
+}
+
+function getScopedAppointments(state: MedicalNotesState): AppointmentSummary[] {
+  if (!state.currentCollaboratorId || state.scopeFilter === "all") return state.appointments;
+
+  return state.appointments.filter((appointment) => {
+    const isMine = appointment.collaborator.id === state.currentCollaboratorId;
+    return state.scopeFilter === "mine" ? isMine : !isMine;
+  });
+}
+
+function getScopedNotes(state: MedicalNotesState): MedicalNoteSummary[] {
+  if (!state.currentCollaboratorId || state.scopeFilter === "all") return state.notes;
+
+  return state.notes.filter((note) => {
+    const isMine = note.collaborator.id === state.currentCollaboratorId;
+    return state.scopeFilter === "mine" ? isMine : !isMine;
+  });
+}
+
+function syncMedicalPatientOptions(root: HTMLElement, state: MedicalNotesState, forceOpen?: boolean): void {
+  const input = root.querySelector<HTMLInputElement>("[data-medical-patient-search]");
+  const list = root.querySelector<HTMLElement>("#medical-patient-options");
+  const clear = root.querySelector<HTMLButtonElement>("[data-medical-patient-clear]");
+  if (!input || !list) return;
+
+  const isOpen = forceOpen ?? document.activeElement === input;
+  input.setAttribute("aria-expanded", String(isOpen));
+  clear?.toggleAttribute("hidden", !state.patientQuery);
+  list.classList.toggle("calendar-combobox__list--open", isOpen);
+
+  if (!isOpen) {
+    list.innerHTML = "";
+    return;
+  }
+
+  if (!state.patientQuery.trim()) {
+    list.innerHTML = `<div class="calendar-combobox__state">Escribe para buscar pacientes.</div>`;
+    return;
+  }
+
+  const patients = getFilteredPatients(state, getPatients(state)).slice(0, 8);
+  if (patients.length === 0) {
+    list.innerHTML = `<div class="calendar-combobox__state">Sin resultados.</div>`;
+    return;
+  }
+
+  list.innerHTML = patients
+    .map((patient) => `
+      <button
+        class="calendar-combobox__option"
+        type="button"
+        role="option"
+        data-medical-patient-option
+        data-medical-patient-id="${escapeHtml(patient.id)}"
+        data-medical-patient-name="${escapeHtml(patient.fullName)}"
+      >
+        <strong>${escapeHtml(patient.fullName)}</strong>
+        <span>Paciente</span>
+      </button>
+    `)
+    .join("");
 }
 
 function normalizeText(value: string): string {

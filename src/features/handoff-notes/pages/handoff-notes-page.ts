@@ -50,6 +50,7 @@ interface HandoffState {
   currentUserId: string | null;
   currentUserArea: string | null;
   publishAs: string | null;
+  scopeFilter: "all" | "mine" | "area";
   filters: HandoffFilters;
 }
 
@@ -92,6 +93,7 @@ export function mountHandoffNotesPage(root: HTMLElement, role: UserRole): void {
     currentUserId: session?.user?.id ?? null,
     currentUserArea: session?.user?.area ?? null,
     publishAs: buildPublishAsLabel(session, role),
+    scopeFilter: "all",
     filters: {
       patientQuery: "",
       unreadOnly: false,
@@ -253,10 +255,8 @@ function renderFilters(state: HandoffState, role: UserRole): string {
     <details class="handoff-filter-panel" open>
       <summary>Filtros</summary>
       <form class="handoff-filter-form" data-handoff-filter-form>
-        <label>
-          Paciente
-          <input name="patientQuery" value="${escapeHtml(filters.patientQuery)}" placeholder="Escribe para buscar paciente" autocomplete="off" data-handoff-patient-search />
-        </label>
+        ${renderHandoffPatientCombobox(filters.patientQuery)}
+        ${renderHandoffCoordinatorScopeFilter(state, role)}
         <label>
           Lectura
           <select name="readStatus">
@@ -327,6 +327,46 @@ function renderPatientList(state: HandoffState, role: UserRole): string {
           </button>
         `;
       }).join("")}
+    </div>
+  `;
+}
+
+function renderHandoffCoordinatorScopeFilter(state: HandoffState, role: UserRole): string {
+  if (role !== "coordinador" || !state.currentUserId) return "";
+
+  return `
+    <label>
+      Alcance
+      <select name="handoffScopeFilter" data-handoff-scope-filter>
+        <option value="all" ${state.scopeFilter === "all" ? "selected" : ""}>Todas las notas del area</option>
+        <option value="mine" ${state.scopeFilter === "mine" ? "selected" : ""}>Solo mis notas</option>
+        <option value="area" ${state.scopeFilter === "area" ? "selected" : ""}>Solo equipo coordinado</option>
+      </select>
+    </label>
+  `;
+}
+
+function renderHandoffPatientCombobox(query: string): string {
+  return `
+    <div class="calendar-combobox-field" data-handoff-patient-combobox>
+      <label for="handoff-patient-search">Paciente</label>
+      <div class="calendar-combobox">
+        <input
+          id="handoff-patient-search"
+          name="patientQuery"
+          type="search"
+          value="${escapeHtml(query)}"
+          placeholder="Escribe para buscar paciente"
+          autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded="false"
+          aria-controls="handoff-patient-options"
+          data-handoff-patient-search
+        />
+        <button class="calendar-combobox__clear" type="button" data-handoff-patient-clear aria-label="Limpiar paciente" ${query ? "" : "hidden"}>x</button>
+        <div id="handoff-patient-options" class="calendar-combobox__list" role="listbox"></div>
+      </div>
     </div>
   `;
 }
@@ -485,21 +525,74 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
     },
   );
 
-  root.querySelector<HTMLFormElement>("[data-handoff-filter-form]")?.addEventListener(
+  root.querySelector<HTMLInputElement>("[data-handoff-patient-search]")?.addEventListener(
+    "focus",
+    () => syncHandoffPatientOptions(root, state, role, true),
+  );
+
+  root.querySelector<HTMLSelectElement>("[data-handoff-scope-filter]")?.addEventListener(
+    "change",
+    (event) => {
+      state.scopeFilter = (event.currentTarget as HTMLSelectElement).value as HandoffState["scopeFilter"];
+      state.selectedPatientId = "";
+      state.focusedNoteId = "";
+      refreshHandoffMain(root, state, role);
+    },
+  );
+
+  root.querySelector<HTMLInputElement>("[data-handoff-patient-search]")?.addEventListener(
     "input",
     (event) => {
+      state.filters.patientQuery = (event.currentTarget as HTMLInputElement).value.trim();
+      state.selectedPatientId = "";
+      state.focusedNoteId = "";
+      syncHandoffPatientOptions(root, state, role);
+      refreshHandoffMain(root, state, role);
+    },
+  );
+
+  root.querySelector<HTMLElement>("[data-handoff-patient-combobox]")?.addEventListener(
+    "focusout",
+    (event) => {
+      const wrapper = event.currentTarget as HTMLElement;
+      window.setTimeout(() => {
+        if (!wrapper.contains(document.activeElement)) {
+          syncHandoffPatientOptions(root, state, role, false);
+        }
+      });
+    },
+  );
+
+  root.querySelector<HTMLElement>("[data-handoff-patient-combobox]")?.addEventListener(
+    "click",
+    (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+      if (!(target instanceof HTMLElement)) return;
+      const option = target.closest<HTMLButtonElement>("[data-handoff-patient-option]");
+      if (option) {
+        const patientId = option.dataset.handoffPatientId;
+        const patientName = option.dataset.handoffPatientName ?? "";
+        if (!patientId) return;
+        state.filters.patientQuery = patientName;
+        state.selectedPatientId = patientId;
+        state.focusedNoteId = "";
+        const input = root.querySelector<HTMLInputElement>("[data-handoff-patient-search]");
+        if (input) input.value = patientName;
+        syncHandoffPatientOptions(root, state, role, false);
+        refreshHandoffMain(root, state, role);
+        void markPatientHistoryAsRead(root, state, role, patientId);
         return;
       }
-      const form = target.form;
-      if (!form) return;
-      state.filters = readFilters(new FormData(form), role);
-      if (target.matches("[data-handoff-patient-search]")) {
+      const clear = target.closest<HTMLButtonElement>("[data-handoff-patient-clear]");
+      if (clear) {
+        state.filters.patientQuery = "";
         state.selectedPatientId = "";
         state.focusedNoteId = "";
+        const input = root.querySelector<HTMLInputElement>("[data-handoff-patient-search]");
+        if (input) input.value = "";
+        syncHandoffPatientOptions(root, state, role, false);
+        refreshHandoffMain(root, state, role);
       }
-      render(root, state, role);
     },
   );
 
@@ -525,8 +618,8 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
         unreadOnly: false,
         createdDate: "",
         area: "",
-      category: "",
-    };
+        category: "",
+      };
       render(root, state, role);
       scheduleScrollToNote(root, state);
     },
@@ -557,6 +650,55 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
       state.saveMessage = null;
       state.saveTone = "success";
       render(root, state, role);
+    },
+  );
+
+  root.querySelector<HTMLFormElement>("[data-handoff-form]")?.addEventListener(
+    "submit",
+    (event) => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget as HTMLFormElement);
+      void submitHandoff(root, state, role, data);
+    },
+  );
+}
+
+function refreshHandoffMain(root: HTMLElement, state: HandoffState, role: UserRole): void {
+  const main = root.querySelector<HTMLElement>(".handoff-main");
+  if (!main) return;
+  main.innerHTML = renderConversation(state, role);
+  bindHandoffConversationEvents(root, state, role);
+  scheduleScrollToNote(root, state);
+}
+
+function bindHandoffConversationEvents(root: HTMLElement, state: HandoffState, role: UserRole): void {
+  root.querySelectorAll<HTMLButtonElement>("[data-select-handoff-patient]").forEach(
+    (button) => {
+      button.addEventListener("click", () => {
+        const patientId = button.dataset.selectHandoffPatient;
+        if (!patientId) return;
+        const patient = findPatient(state, patientId);
+        state.selectedPatientId = patientId;
+        state.filters.patientQuery = patient ? getPatientName(patient) : state.filters.patientQuery;
+        state.focusedNoteId = "";
+        state.saveMessage = null;
+        state.saveTone = "success";
+        const input = root.querySelector<HTMLInputElement>("[data-handoff-patient-search]");
+        if (input) input.value = state.filters.patientQuery;
+        refreshHandoffMain(root, state, role);
+        void markPatientHistoryAsRead(root, state, role, patientId);
+      });
+    },
+  );
+
+  root.querySelector<HTMLButtonElement>("[data-handoff-back-to-patients]")?.addEventListener(
+    "click",
+    () => {
+      state.selectedPatientId = "";
+      state.focusedNoteId = "";
+      state.saveMessage = null;
+      state.saveTone = "success";
+      refreshHandoffMain(root, state, role);
     },
   );
 
@@ -716,6 +858,57 @@ function getVisiblePatients(state: HandoffState, role: UserRole): CatalogItem[] 
   });
 }
 
+function syncHandoffPatientOptions(
+  root: HTMLElement,
+  state: HandoffState,
+  role: UserRole,
+  forceOpen?: boolean,
+): void {
+  const input = root.querySelector<HTMLInputElement>("[data-handoff-patient-search]");
+  const list = root.querySelector<HTMLElement>("#handoff-patient-options");
+  const clear = root.querySelector<HTMLButtonElement>("[data-handoff-patient-clear]");
+  if (!input || !list) return;
+
+  const isOpen = forceOpen ?? document.activeElement === input;
+  input.setAttribute("aria-expanded", String(isOpen));
+  clear?.toggleAttribute("hidden", !state.filters.patientQuery);
+  list.classList.toggle("calendar-combobox__list--open", isOpen);
+
+  if (!isOpen) {
+    list.innerHTML = "";
+    return;
+  }
+
+  if (!state.filters.patientQuery.trim()) {
+    list.innerHTML = `<div class="calendar-combobox__state">Escribe para buscar pacientes.</div>`;
+    return;
+  }
+
+  const patients = getVisiblePatients(state, role).slice(0, 8);
+  if (patients.length === 0) {
+    list.innerHTML = `<div class="calendar-combobox__state">Sin resultados.</div>`;
+    return;
+  }
+
+  list.innerHTML = patients
+    .map((patient) => {
+      const patientName = getPatientName(patient);
+      return `
+        <button
+          class="calendar-combobox__option"
+          type="button"
+          role="option"
+          data-handoff-patient-id="${escapeHtml(patient.id)}"
+          data-handoff-patient-name="${escapeHtml(patientName)}"
+        >
+          <strong>${escapeHtml(patientName)}</strong>
+          <span>${state.relatedPatientIds.has(patient.id) ? "Relacionado" : "Paciente"}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
 function getAllowedPatientsForNewNote(
   state: HandoffState,
   role: UserRole,
@@ -736,6 +929,14 @@ function getFilteredNotes(
   role: UserRole,
 ): HandoffNoteSummary[] {
   return state.notes.filter((note) => {
+    if (state.scopeFilter === "mine" && !isOwnNote(note, state)) {
+      return false;
+    }
+
+    if (state.scopeFilter === "area" && isOwnNote(note, state)) {
+      return false;
+    }
+
     if (state.filters.unreadOnly && !isUnreadForCurrentUser(note, state.currentUserId)) {
       return false;
     }
