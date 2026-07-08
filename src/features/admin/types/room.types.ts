@@ -5,4 +5,5 @@ export interface RoomDto {
   name: string;
   capacity?: number | null;
   status: "active" | "inactive";
+  deletedAt?: string | null;
 }

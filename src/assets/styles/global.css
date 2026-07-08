@@ -448,6 +448,24 @@ button:hover,
   background: #1b2731;
 }
 
+.admin-danger-action {
+  border-color: #efb4a9;
+  color: #8f2a1d;
+  background: #fff4f2;
+}
+
+.admin-danger-action:hover,
+.admin-danger-action[data-confirmed="true"] {
+  border-color: #b33a2b;
+  color: #ffffff;
+  background: #b33a2b;
+}
+
+.admin-warning-text {
+  color: #8f5b00;
+  font-weight: 700;
+}
+
 button:disabled,
 .secondary-action:disabled {
   opacity: 0.65;

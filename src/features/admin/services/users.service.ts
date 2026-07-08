@@ -14,7 +14,7 @@ export interface CreateUserInput {
 }
 
 class UsersService {
-  async getAll(): Promise<readonly UserDto[]> {
+  async getAll(options: { includeDeleted?: boolean } = {}): Promise<readonly UserDto[]> {
 
     if (appConfig.adminMocksEnabled) {
       return mockUsers;
@@ -54,6 +54,7 @@ class UsersService {
 
     return adminApiClient.request<readonly UserDto[]>(
       "/users",
+      { query: options.includeDeleted ? { includeDeleted: true } : undefined },
     );
   }
 
@@ -89,6 +90,16 @@ class UsersService {
 
     await adminApiClient.request<void>(`/users/${encodeURIComponent(userId)}`, {
       method: "DELETE",
+    });
+  }
+
+  async restore(userId: string): Promise<UserDto> {
+    if (appConfig.adminMocksEnabled) {
+      throw new Error("Restore is unavailable with admin mocks enabled.");
+    }
+
+    return adminApiClient.request<UserDto>(`/users/${encodeURIComponent(userId)}/restore`, {
+      method: "POST",
     });
   }
 }

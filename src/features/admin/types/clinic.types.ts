@@ -4,4 +4,5 @@ export interface ClinicDto {
   status: "active" | "inactive";
   specialization?: string | null;
   capacity?: number | null;
+  deletedAt?: string | null;
 }

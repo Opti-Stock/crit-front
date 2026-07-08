@@ -7,6 +7,7 @@ import { escapeHtml } from "../../../utils/dom";
 export async function mountUsersPage(
   root: HTMLElement,
   message: string | null = null,
+  includeDeleted = false,
 ): Promise<void> {
   root.innerHTML = `
     <section class="app-panel">
@@ -17,7 +18,7 @@ export async function mountUsersPage(
 
   try {
     const [users, roles, clinics] = await Promise.all([
-      usersService.getAll(),
+      usersService.getAll({ includeDeleted }),
       rolesService.getAll(),
       clinicsService.getAll(),
     ]);
@@ -36,6 +37,9 @@ export async function mountUsersPage(
             <h2>Usuarios</h2>
             <p>Crear usuarios del tenant y asignar su rol inicial.</p>
           </div>
+          <button class="secondary-action" type="button" data-toggle-deleted-users>
+            ${includeDeleted ? "Ocultar eliminados" : "Mostrar eliminados"}
+          </button>
         </div>
 
         ${message ? `<p class="inline-alert" role="status">${escapeHtml(message)}</p>` : ""}
@@ -83,13 +87,15 @@ export async function mountUsersPage(
               header: "Estado",
               render: (user) =>
                 user.status === "active"
-                  ? "Activo"
-                  : "Inactivo",
+                  ? user.deletedAt ? "Eliminado" : "Activo"
+                  : user.deletedAt ? "Eliminado" : "Inactivo",
             },
             {
               header: "Acciones",
               render: (user) =>
-                `<button class="secondary-action" type="button" data-delete-user-id="${escapeHtml(user.id)}">Eliminar</button>`,
+                user.deletedAt
+                  ? `<button class="secondary-action" type="button" data-restore-user-id="${escapeHtml(user.id)}">Restaurar</button>`
+                  : `<button class="secondary-action admin-danger-action" type="button" data-delete-user-id="${escapeHtml(user.id)}">Eliminar</button>`,
             },
           ],
           users,
@@ -119,14 +125,19 @@ export async function mountUsersPage(
             })),
             specialty: String(data.get("specialty") ?? "").trim() || undefined,
           })
-          .then(() => mountUsersPage(root, "Usuario creado."))
+          .then(() => mountUsersPage(root, "Usuario creado.", includeDeleted))
           .catch((error) =>
             mountUsersPage(
               root,
               error instanceof Error ? error.message : "No se pudo crear el usuario.",
+              includeDeleted,
             ),
           );
       });
+
+    root.querySelector<HTMLButtonElement>("[data-toggle-deleted-users]")?.addEventListener("click", () => {
+      void mountUsersPage(root, null, !includeDeleted);
+    });
 
     const roleSelect = root.querySelector<HTMLSelectElement>('select[name="roleId"]');
     const specialtyField = root.querySelector<HTMLElement>("[data-specialty-field]");
@@ -147,15 +158,32 @@ export async function mountUsersPage(
       button.addEventListener("click", () => {
         const userId = button.dataset.deleteUserId;
         if (!userId) return;
-        const confirmed = window.confirm("¿Eliminar este usuario? Se desactivara y dejara de aparecer en administracion.");
-        if (!confirmed) return;
+        if (!markInlineConfirmed(button, "Confirmar")) return;
         void usersService
           .delete(userId)
-          .then(() => mountUsersPage(root, "Usuario eliminado."))
+          .then(() => mountUsersPage(root, "Usuario eliminado.", includeDeleted))
           .catch((error) =>
             mountUsersPage(
               root,
               error instanceof Error ? error.message : "No se pudo eliminar el usuario.",
+              includeDeleted,
+            ),
+          );
+      });
+    });
+
+    root.querySelectorAll<HTMLButtonElement>("[data-restore-user-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const userId = button.dataset.restoreUserId;
+        if (!userId) return;
+        void usersService
+          .restore(userId)
+          .then(() => mountUsersPage(root, "Usuario restaurado.", includeDeleted))
+          .catch((error) =>
+            mountUsersPage(
+              root,
+              error instanceof Error ? error.message : "No se pudo restaurar el usuario.",
+              includeDeleted,
             ),
           );
       });
@@ -177,4 +205,17 @@ export async function mountUsersPage(
       </section>
     `;
   }
+}
+
+function markInlineConfirmed(button: HTMLButtonElement, label: string): boolean {
+  if (button.dataset.confirmed === "true") return true;
+  button.dataset.confirmed = "true";
+  button.textContent = label;
+  window.setTimeout(() => {
+    if (button.isConnected && button.dataset.confirmed === "true") {
+      button.dataset.confirmed = "false";
+      button.textContent = "Eliminar";
+    }
+  }, 3000);
+  return false;
 }
