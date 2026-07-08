@@ -39,6 +39,16 @@ class RoomsService {
       },
     });
   }
+
+  async delete(roomId: string): Promise<void> {
+    if (appConfig.adminMocksEnabled) {
+      return;
+    }
+
+    await adminApiClient.request<void>(`/rooms/${encodeURIComponent(roomId)}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 export const roomsService = new RoomsService();

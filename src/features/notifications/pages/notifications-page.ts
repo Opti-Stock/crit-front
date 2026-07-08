@@ -316,9 +316,7 @@ function getNotificationPatientLabel(notification: NotificationSummary): string 
   return (
     readString(metadataPatient, "fullName") ??
     readString(metadataPatient, "name") ??
-    notification.target?.patientId ??
-    readString(metadata, "patientId") ??
-    "No disponible"
+    "Paciente no disponible"
   );
 }
 

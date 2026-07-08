@@ -431,6 +431,7 @@ function renderConversation(state: HandoffState, role: UserRole): string {
 
 function renderCreateForm(state: HandoffState, role: UserRole): string {
   const patients = getAllowedPatientsForNewNote(state, role);
+  const selectedPatient = state.selectedPatientId ? findPatient(state, state.selectedPatientId) : null;
 
   if (patients.length === 0) {
     return `<p class="empty-state">No hay pacientes relacionados disponibles para crear una nota.</p>`;
@@ -440,17 +441,29 @@ function renderCreateForm(state: HandoffState, role: UserRole): string {
     <form class="handoff-create-form" data-handoff-form>
       ${state.publishAs ? `<p class="handoff-publish-as">Publicar como: ${escapeHtml(state.publishAs)}</p>` : ""}
       <div class="handoff-create-form__grid">
-        <label>
-          Paciente
-          <select name="patientId" required>
-            <option value="">Selecciona</option>
-            ${patients.map((patient) => `
-              <option value="${escapeHtml(patient.id)}" ${patient.id === state.selectedPatientId ? "selected" : ""}>
-                ${escapeHtml(getPatientName(patient))}
-              </option>
-            `).join("")}
-          </select>
-        </label>
+        ${
+          selectedPatient
+            ? `
+              <label>
+                Paciente
+                <input value="${escapeHtml(getPatientName(selectedPatient))}" disabled />
+                <input type="hidden" name="patientId" value="${escapeHtml(selectedPatient.id)}" />
+              </label>
+            `
+            : `
+              <label>
+                Paciente
+                <select name="patientId" required>
+                  <option value="">Selecciona</option>
+                  ${patients.map((patient) => `
+                    <option value="${escapeHtml(patient.id)}">
+                      ${escapeHtml(getPatientName(patient))}
+                    </option>
+                  `).join("")}
+                </select>
+              </label>
+            `
+        }
         <label>
           Categoria
           <select name="category" required>

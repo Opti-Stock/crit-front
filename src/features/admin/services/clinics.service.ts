@@ -41,6 +41,16 @@ class ClinicsService {
       },
     });
   }
+
+  async delete(clinicId: string): Promise<void> {
+    if (appConfig.adminMocksEnabled) {
+      return;
+    }
+
+    await adminApiClient.request<void>(`/clinics/${encodeURIComponent(clinicId)}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 export const clinicsService = new ClinicsService();

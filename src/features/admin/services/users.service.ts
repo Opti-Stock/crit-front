@@ -81,6 +81,16 @@ class UsersService {
       },
     });
   }
+
+  async delete(userId: string): Promise<void> {
+    if (appConfig.adminMocksEnabled) {
+      return;
+    }
+
+    await adminApiClient.request<void>(`/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 export const usersService = new UsersService();

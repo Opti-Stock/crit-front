@@ -67,6 +67,8 @@ interface AttendanceState {
   currentUserId: string | null;
   currentCollaboratorId: string | null;
   scopeFilter: "all" | "mine" | "area";
+  page: number;
+  pageSize: number;
 }
 
 const CLINICAL_ATTENDANCE_ROLES: readonly UserRole[] = ["medico", "terapeuta"];
@@ -111,6 +113,8 @@ export function mountAttendancePage(root: HTMLElement, role: UserRole): void {
     currentUserId: session?.user?.id ?? null,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
     scopeFilter: "all",
+    page: 1,
+    pageSize: 20,
   };
 
   render(root, state, role);
@@ -277,9 +281,28 @@ function renderRows(
     return `<p class="empty-state">No hay citas visibles para los filtros actuales.</p>`;
   }
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / state.pageSize));
+  const safePage = Math.min(Math.max(state.page, 1), totalPages);
+  const pageRows = rows.slice((safePage - 1) * state.pageSize, safePage * state.pageSize);
+
   return `
     <div class="attendance-list">
-      ${rows.map((row) => renderRow(row, state, role)).join("")}
+      ${pageRows.map((row) => renderRow(row, state, role)).join("")}
+    </div>
+    ${renderAttendancePagination(rows.length, safePage, totalPages)}
+  `;
+}
+
+function renderAttendancePagination(total: number, page: number, totalPages: number): string {
+  if (totalPages <= 1) {
+    return `<p class="hint-text">Mostrando ${total} asistencias visibles.</p>`;
+  }
+
+  return `
+    <div class="button-row attendance-pagination" aria-label="Paginacion de asistencias">
+      <button class="secondary-action" type="button" data-attendance-page="previous" ${page <= 1 ? "disabled" : ""}>Anterior</button>
+      <span class="hint-text">Pagina ${page} de ${totalPages} - ${total} asistencias</span>
+      <button class="secondary-action" type="button" data-attendance-page="next" ${page >= totalPages ? "disabled" : ""}>Siguiente</button>
     </div>
   `;
 }
@@ -451,6 +474,7 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
     "input",
     (event) => {
       state.search = (event.currentTarget as HTMLInputElement).value;
+      state.page = 1;
       syncAttendancePatientOptions(root, state);
       updateAttendanceResults(root, state, role);
     },
@@ -483,6 +507,7 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
       const option = target.closest<HTMLButtonElement>("[data-attendance-patient-option]");
       if (option) {
         state.search = option.dataset.attendancePatientOption ?? "";
+        state.page = 1;
         const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
         if (input) input.value = state.search;
         syncAttendancePatientOptions(root, state, false);
@@ -492,6 +517,7 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
       const clear = target.closest<HTMLButtonElement>("[data-attendance-patient-clear]");
       if (clear) {
         state.search = "";
+        state.page = 1;
         const input = root.querySelector<HTMLInputElement>("[data-attendance-search]");
         if (input) input.value = "";
         syncAttendancePatientOptions(root, state, false);
@@ -504,6 +530,7 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
     "change",
     (event) => {
       state.scopeFilter = (event.currentTarget as HTMLSelectElement).value as AttendanceState["scopeFilter"];
+      state.page = 1;
       updateAttendanceResults(root, state, role);
     },
   );
@@ -514,6 +541,7 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
       if (!canQueryOtherDates(role)) return;
 
       state.selectedDate = (event.currentTarget as HTMLInputElement).value;
+      state.page = 1;
       state.isLoading = true;
       render(root, state, role);
       void load(root, state, role);
@@ -531,6 +559,18 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
 }
 
 function bindAttendanceCardEvents(root: HTMLElement, state: AttendanceState, role: UserRole): void {
+  root.querySelectorAll<HTMLButtonElement>("[data-attendance-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const direction = button.dataset.attendancePage;
+      const totalPages = Math.max(1, Math.ceil(getFilteredRows(state).length / state.pageSize));
+      state.page =
+        direction === "next"
+          ? Math.min(state.page + 1, totalPages)
+          : Math.max(state.page - 1, 1);
+      updateAttendanceResults(root, state, role);
+    });
+  });
+
   root.querySelectorAll<HTMLButtonElement>("[data-attendance-action]").forEach(
     (button) => {
       button.addEventListener("click", () => {
