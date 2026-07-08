@@ -43,23 +43,25 @@ class ClinicsService {
     });
   }
 
-  async delete(clinicId: string): Promise<void> {
+  async delete(clinicId: string, reason?: string): Promise<void> {
     if (appConfig.adminMocksEnabled) {
       return;
     }
 
     await adminApiClient.request<void>(`/clinics/${encodeURIComponent(clinicId)}`, {
       method: "DELETE",
+      body: reason ? { reason } : undefined,
     });
   }
 
-  async restore(clinicId: string): Promise<ClinicSummary> {
+  async restore(clinicId: string, reason?: string): Promise<ClinicSummary> {
     if (appConfig.adminMocksEnabled) {
       throw new Error("Restore is unavailable with admin mocks enabled.");
     }
 
     return adminApiClient.request<ClinicDto>(`/clinics/${encodeURIComponent(clinicId)}/restore`, {
       method: "POST",
+      body: reason ? { reason } : undefined,
     });
   }
 }

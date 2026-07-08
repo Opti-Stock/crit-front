@@ -1,4 +1,7 @@
 import type { NotificationSummary } from "../../../types/operational.types";
+import { appConfig } from "../../../config/env";
+import { sessionService } from "../../auth/services/session.service";
+import { subscribeToSse } from "../../../services/realtime/sse-client";
 
 export type NotificationsRealtimeStatus = "connected" | "unavailable" | "error";
 
@@ -23,16 +26,27 @@ export interface NotificationsRealtimeSubscription {
 }
 
 export const NOTIFICATIONS_REALTIME_CONTRACT =
-  "Contrato pendiente: exponer SSE o WebSocket autenticado para eventos notification_created y notification_read con notification, notificationId y unreadCount por usuario.";
+  "Eventos en tiempo real no disponibles. La lista se actualiza al abrir el modulo.";
 
 export function subscribeToNotificationsRealtime(
   handlers: NotificationsRealtimeHandlers,
 ): NotificationsRealtimeSubscription {
-  window.queueMicrotask(() => {
-    handlers.onStatusChange?.("unavailable", NOTIFICATIONS_REALTIME_CONTRACT);
+  const subscription = subscribeToSse({
+    url: `${appConfig.mainApiUrl}/realtime/events`,
+    accessToken: sessionService.getAccessToken(),
+    onOpen: () => handlers.onStatusChange?.("connected"),
+    onError: (message) => handlers.onStatusChange?.("error", message || NOTIFICATIONS_REALTIME_CONTRACT),
+    onEvent: (eventName, envelope) => {
+      if (eventName === "notification_created") {
+        handlers.onNotificationCreated?.(envelope.data as NotificationCreatedEvent);
+      }
+      if (eventName === "notification_read") {
+        handlers.onNotificationRead?.(envelope.data as NotificationReadEvent);
+      }
+    },
   });
 
   return {
-    unsubscribe: () => undefined,
+    unsubscribe: () => subscription.unsubscribe(),
   };
 }

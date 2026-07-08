@@ -2,6 +2,9 @@ import type {
   AppointmentSummary,
   AttendanceSummary,
 } from "../../../types/operational.types";
+import { appConfig } from "../../../config/env";
+import { sessionService } from "../../auth/services/session.service";
+import { subscribeToSse } from "../../../services/realtime/sse-client";
 
 export type AttendanceRealtimeStatus = "connected" | "unavailable" | "error";
 
@@ -16,16 +19,27 @@ export interface AttendanceRealtimeSubscription {
 }
 
 export const ATTENDANCE_REALTIME_CONTRACT =
-  "Contrato pendiente: exponer SSE o WebSocket autenticado para eventos appointment_changed, attendance_changed y reception_checkin_registered con appointment, attendance y scope por usuario/area.";
+  "Eventos en tiempo real no disponibles. Puedes refrescar la vista para ver cambios recientes.";
 
 export function subscribeToAttendanceRealtime(
   handlers: AttendanceRealtimeHandlers,
 ): AttendanceRealtimeSubscription {
-  window.queueMicrotask(() => {
-    handlers.onStatusChange?.("unavailable", ATTENDANCE_REALTIME_CONTRACT);
+  const subscription = subscribeToSse({
+    url: `${appConfig.mainApiUrl}/realtime/events`,
+    accessToken: sessionService.getAccessToken(),
+    onOpen: () => handlers.onStatusChange?.("connected"),
+    onError: (message) => handlers.onStatusChange?.("error", message || ATTENDANCE_REALTIME_CONTRACT),
+    onEvent: (eventName, envelope) => {
+      if (eventName === "appointment_changed") {
+        handlers.onAppointmentChanged?.(envelope.data as AppointmentSummary);
+      }
+      if (eventName === "attendance_changed") {
+        handlers.onAttendanceChanged?.(envelope.data as AttendanceSummary);
+      }
+    },
   });
 
   return {
-    unsubscribe: () => undefined,
+    unsubscribe: () => subscription.unsubscribe(),
   };
 }

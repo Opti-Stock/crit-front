@@ -1,4 +1,7 @@
 import type { HandoffNoteSummary } from "../../../types/operational.types";
+import { appConfig } from "../../../config/env";
+import { sessionService } from "../../auth/services/session.service";
+import { subscribeToSse } from "../../../services/realtime/sse-client";
 
 export type HandoffRealtimeStatus = "connected" | "unavailable" | "error";
 
@@ -24,16 +27,27 @@ export interface HandoffRealtimeSubscription {
 }
 
 export const HANDOFF_REALTIME_CONTRACT =
-  "Contrato pendiente: exponer SSE o WebSocket autenticado para eventos handoff_note_created y handoff_note_read con note, patientId, handoffNoteId y unreadCount por usuario.";
+  "Eventos en tiempo real no disponibles. Puedes refrescar la vista para ver cambios recientes.";
 
 export function subscribeToHandoffNotesRealtime(
   handlers: HandoffRealtimeHandlers,
 ): HandoffRealtimeSubscription {
-  window.queueMicrotask(() => {
-    handlers.onStatusChange?.("unavailable", HANDOFF_REALTIME_CONTRACT);
+  const subscription = subscribeToSse({
+    url: `${appConfig.mainApiUrl}/realtime/events`,
+    accessToken: sessionService.getAccessToken(),
+    onOpen: () => handlers.onStatusChange?.("connected"),
+    onError: (message) => handlers.onStatusChange?.("error", message || HANDOFF_REALTIME_CONTRACT),
+    onEvent: (eventName, envelope) => {
+      if (eventName === "handoff_note_created") {
+        handlers.onNoteCreated?.(envelope.data as HandoffNoteCreatedEvent);
+      }
+      if (eventName === "handoff_note_read") {
+        handlers.onNoteRead?.(envelope.data as HandoffNoteReadEvent);
+      }
+    },
   });
 
   return {
-    unsubscribe: () => undefined,
+    unsubscribe: () => subscription.unsubscribe(),
   };
 }

@@ -24,6 +24,11 @@ import {
   subscribeToHandoffNotesRealtime,
   type HandoffRealtimeStatus,
 } from "../services/handoff-notes-realtime.service";
+import {
+  renderPatientCombobox,
+  renderPatientComboboxOptions,
+  type PatientComboboxOption,
+} from "../../../components/patient-combobox";
 
 interface HandoffFilters {
   patientQuery: string;
@@ -347,28 +352,18 @@ function renderHandoffCoordinatorScopeFilter(state: HandoffState, role: UserRole
 }
 
 function renderHandoffPatientCombobox(query: string): string {
-  return `
-    <div class="calendar-combobox-field" data-handoff-patient-combobox>
-      <label for="handoff-patient-search">Paciente</label>
-      <div class="calendar-combobox">
-        <input
-          id="handoff-patient-search"
-          name="patientQuery"
-          type="search"
-          value="${escapeHtml(query)}"
-          placeholder="Escribe para buscar paciente"
-          autocomplete="off"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded="false"
-          aria-controls="handoff-patient-options"
-          data-handoff-patient-search
-        />
-        <button class="calendar-combobox__clear" type="button" data-handoff-patient-clear aria-label="Limpiar paciente" ${query ? "" : "hidden"}>x</button>
-        <div id="handoff-patient-options" class="calendar-combobox__list" role="listbox"></div>
-      </div>
-    </div>
-  `;
+  return renderPatientCombobox({
+    id: "handoff-patient-search",
+    label: "Paciente",
+    query,
+    placeholder: "Escribe para buscar paciente",
+    isOpen: false,
+    options: [],
+    searchDataAttribute: "data-handoff-patient-search",
+    clearDataAttribute: "data-handoff-patient-clear",
+    optionDataAttribute: "data-handoff-patient-option",
+    optionIdDataAttribute: "data-handoff-patient-id",
+  });
 }
 
 function renderConversation(state: HandoffState, role: UserRole): string {
@@ -584,7 +579,7 @@ function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): voi
       const option = target.closest<HTMLButtonElement>("[data-handoff-patient-option]");
       if (option) {
         const patientId = option.dataset.handoffPatientId;
-        const patientName = option.dataset.handoffPatientName ?? "";
+        const patientName = option.dataset.patientOptionLabel ?? "";
         if (!patientId) return;
         state.filters.patientQuery = patientName;
         state.selectedPatientId = patientId;
@@ -878,7 +873,7 @@ function syncHandoffPatientOptions(
   forceOpen?: boolean,
 ): void {
   const input = root.querySelector<HTMLInputElement>("[data-handoff-patient-search]");
-  const list = root.querySelector<HTMLElement>("#handoff-patient-options");
+  const list = root.querySelector<HTMLElement>("#handoff-patient-search-options");
   const clear = root.querySelector<HTMLButtonElement>("[data-handoff-patient-clear]");
   if (!input || !list) return;
 
@@ -892,34 +887,25 @@ function syncHandoffPatientOptions(
     return;
   }
 
-  if (!state.filters.patientQuery.trim()) {
-    list.innerHTML = `<div class="calendar-combobox__state">Escribe para buscar pacientes.</div>`;
-    return;
-  }
+  const patients: PatientComboboxOption[] = getVisiblePatients(state, role)
+    .slice(0, 8)
+    .map((patient) => ({
+      ...patient,
+      badge: state.relatedPatientIds.has(patient.id) ? "Relacionado" : "Paciente",
+    }));
 
-  const patients = getVisiblePatients(state, role).slice(0, 8);
-  if (patients.length === 0) {
-    list.innerHTML = `<div class="calendar-combobox__state">Sin resultados.</div>`;
-    return;
-  }
-
-  list.innerHTML = patients
-    .map((patient) => {
-      const patientName = getPatientName(patient);
-      return `
-        <button
-          class="calendar-combobox__option"
-          type="button"
-          role="option"
-          data-handoff-patient-id="${escapeHtml(patient.id)}"
-          data-handoff-patient-name="${escapeHtml(patientName)}"
-        >
-          <strong>${escapeHtml(patientName)}</strong>
-          <span>${state.relatedPatientIds.has(patient.id) ? "Relacionado" : "Paciente"}</span>
-        </button>
-      `;
-    })
-    .join("");
+  list.innerHTML = renderPatientComboboxOptions({
+    id: "handoff-patient-search",
+    label: "Paciente",
+    query: state.filters.patientQuery,
+    placeholder: "Escribe para buscar paciente",
+    isOpen,
+    options: patients,
+    searchDataAttribute: "data-handoff-patient-search",
+    clearDataAttribute: "data-handoff-patient-clear",
+    optionDataAttribute: "data-handoff-patient-option",
+    optionIdDataAttribute: "data-handoff-patient-id",
+  }, "handoff-patient-search-options");
 }
 
 function getAllowedPatientsForNewNote(
