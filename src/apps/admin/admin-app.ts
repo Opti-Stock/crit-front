@@ -154,17 +154,19 @@ async function mountAdminView(
 
 function renderAdminBrand(href: string): string {
   return `
-    <div class="sidebar-brand">
+    <div class="admin-sidebar-brand">
       <button
         type="button"
-        class="sidebar-back-button"
+        class="admin-back-circle-button"
         aria-label="Volver a la aplicación"
         title="Volver a la aplicación"
         data-admin-main-app-href="${escapeHtml(href)}"
       >
-        <span aria-hidden="true">←</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <path d="M15 18 9 12l6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </button>
-      <span class="sidebar-brand-title">CRIT Assistance</span>
+      <span class="admin-sidebar-title">CRIT Assistance</span>
     </div>
   `;
 }
