@@ -19,6 +19,18 @@ export interface CheckinAppointmentSummary {
   checkInStatus: CheckInStatus;
   isCheckedIn: boolean;
   checkedInAt: string | null;
+  attendance: {
+    id: string;
+    status: AttendanceStatus | "pending";
+    checkedAt: string | null;
+  } | null;
+}
+
+export interface ScanCheckinResult {
+  patient: { id: string; fullName: string; externalId: string | null };
+  checkedIn: boolean;
+  alreadyCheckedIn: boolean;
+  appointments: CheckinAppointmentSummary[];
 }
 
 export interface ListCheckinAppointmentsQuery {
@@ -46,4 +58,11 @@ export function checkInAppointment(appointmentId: string) {
     `/appointments/${encodeURIComponent(appointmentId)}/check-in`,
     { method: "POST", body: {} },
   );
+}
+
+export function scanBadgeCheckIn(input: { code: string; date?: string }) {
+  return checkinApiClient.request<ScanCheckinResult>("/scan", {
+    method: "POST",
+    body: input,
+  });
 }
