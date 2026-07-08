@@ -620,11 +620,120 @@ button:disabled,
 .attendance-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: stretch;
+  gap: 12px;
 }
 
-.attendance-actions button {
+.attendance-action-button,
+.attendance-note-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px 16px;
+  border-width: 1px;
+  border-radius: 18px;
+  font-weight: 900;
+  line-height: 1.15;
   white-space: normal;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+.attendance-action-button {
+  flex: 1 1 132px;
+}
+
+.attendance-action-button__icon,
+.attendance-note-action__icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.attendance-action-button--present {
+  border-color: #15803d;
+  color: #ffffff;
+  background: #15803d;
+}
+
+.attendance-action-button--present .attendance-action-button__icon {
+  color: #15803d;
+  background: #ffffff;
+}
+
+.attendance-action-button--absent {
+  border-color: #b42318;
+  color: #ffffff;
+  background: #b42318;
+}
+
+.attendance-action-button--absent .attendance-action-button__icon {
+  color: #b42318;
+  background: #ffffff;
+}
+
+.attendance-action-button--rescheduled {
+  border-color: #b7791f;
+  color: #3f2b00;
+  background: #f7c948;
+}
+
+.attendance-action-button--rescheduled .attendance-action-button__icon {
+  color: #3f2b00;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.attendance-note-action {
+  flex: 1 1 220px;
+  margin-left: auto;
+  border-color: #5b4bb7;
+  color: #ffffff;
+  background: #5b4bb7;
+}
+
+.attendance-note-action .attendance-note-action__icon {
+  color: #5b4bb7;
+  background: #ffffff;
+}
+
+.attendance-action-button:hover,
+.attendance-note-action:hover {
+  filter: brightness(0.95);
+  box-shadow: 0 8px 18px rgba(23, 32, 42, 0.16);
+  transform: translateY(-1px);
+}
+
+.attendance-action-button:active,
+.attendance-note-action:active {
+  transform: translateY(0);
+}
+
+.attendance-action-button:focus-visible,
+.attendance-note-action:focus-visible {
+  outline: 3px solid rgba(91, 75, 183, 0.28);
+  outline-offset: 2px;
+}
+
+.attendance-note-action:disabled {
+  border-color: #cad3dc;
+  color: #607080;
+  background: #f8fafc;
+}
+
+.attendance-note-action:disabled .attendance-note-action__icon {
+  color: #607080;
+  background: #e8edf2;
 }
 
 .attendance-action--warning {
@@ -2004,10 +2113,10 @@ button:disabled {
   z-index: 2;
   display: grid;
   align-content: start;
-  gap: 2px;
+  gap: 3px;
   overflow: hidden;
   min-height: 18px;
-  padding: 6px 8px;
+  padding: 5px 7px 5px 8px;
   border: 1px solid #c8d1dc;
   border-left-width: 4px;
   border-radius: 6px;
@@ -2036,11 +2145,11 @@ button:disabled {
 }
 
 .calendar-appointment--compact {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  column-gap: 4px;
-  padding-block: 2px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 2px 5px;
+  padding-block: 3px;
 }
 
 .calendar-appointment--info {
@@ -2093,37 +2202,50 @@ button:disabled {
   color: currentColor;
   font-size: 0.76rem;
   font-weight: 700;
+  line-height: 1.18;
   opacity: 0.82;
 }
 
 .calendar-appointment strong {
   overflow: hidden;
   font-size: 0.9rem;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .calendar-appointment span {
   overflow: hidden;
   font-size: 0.78rem;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.calendar-appointment__patient,
+.calendar-appointment__secondary {
+  display: block;
+  min-width: 0;
 }
 
 .calendar-appointment--compact .calendar-appointment__time,
 .calendar-appointment--compact strong {
   font-size: 0.74rem;
-  line-height: 1.05;
+  line-height: 1.1;
 }
 
 .calendar-appointment--compact .calendar-appointment__time {
-  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .calendar-appointment--compact strong {
   min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
 .calendar-status {
@@ -2187,10 +2309,32 @@ button:disabled {
 .calendar-filter-chip {
   min-height: 28px;
   padding: 4px 8px;
-  border-color: #d7d0ff;
+  border-color: #cfc6ff;
   color: #46369a;
   background: #f5f2ff;
   font-size: 0.78rem;
+  transition:
+    filter 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.calendar-filter-chip:hover {
+  border-color: #cfc6ff;
+  color: #46369a;
+  background: #f5f2ff;
+  filter: brightness(0.94);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.14);
+  transform: translateY(-1px);
+}
+
+.calendar-filter-chip:active {
+  transform: translateY(0);
+}
+
+.calendar-filter-chip:focus-visible {
+  outline: 3px solid rgba(99, 79, 190, 0.3);
+  outline-offset: 2px;
 }
 
 .calendar-month {

@@ -560,11 +560,16 @@ function renderAppointmentBlock(
   ]
     .filter(Boolean)
     .join(" ");
+  const title = [
+    `${formatTime(start)} - ${formatTime(end)}`,
+    appointment.patient.fullName,
+    appointment.appointmentType.name,
+  ].join(" | ");
 
   return `
-    <button class="${classes}" type="button" data-appointment-id="${escapeHtml(appointment.id)}" style="top: ${positioned.topPx}px; height: ${positioned.heightPx}px; left: calc(${positioned.leftPercent}% + 4px); width: calc(${positioned.widthPercent}% - 8px);">
+    <button class="${classes}" type="button" data-appointment-id="${escapeHtml(appointment.id)}" title="${escapeHtml(title)}" style="top: ${positioned.topPx}px; height: ${positioned.heightPx}px; left: calc(${positioned.leftPercent}% + 4px); width: calc(${positioned.widthPercent}% - 8px);">
       <span class="calendar-appointment__time">${escapeHtml(formatTime(start))} - ${escapeHtml(formatTime(end))}</span>
-      <strong>${escapeHtml(appointment.patient.fullName)}</strong>
+      <strong class="calendar-appointment__patient">${escapeHtml(appointment.patient.fullName)}</strong>
       ${isCompact ? "" : `<span class="calendar-appointment__secondary">${escapeHtml(appointment.appointmentType.name)}</span>`}
       ${hasMeta ? `<span class="calendar-appointment__meta">${escapeHtml(appointment.collaborator.fullName)} · ${escapeHtml(appointment.room.name)}</span>` : ""}
     </button>

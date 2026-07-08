@@ -294,7 +294,7 @@ function renderRow(
   const appointment = row.appointment;
   const canRegister = canRegisterClinicalAttendance(row, state, role);
   const canAddNote = canWriteMedicalNote(row, role);
-  const noteLabel = row.medicalNote ? "Nota guardada" : "Agregar nota medica";
+  const noteLabel = row.medicalNote ? "Nota guardada" : "Agregar nota médica";
 
   return `
     <article class="attendance-card attendance-card--${config.tone}" data-appointment-id="${escapeHtml(appointment.id)}">
@@ -321,14 +321,24 @@ function renderRow(
         ${
           canRegister
             ? `
-              <button type="button" data-attendance-action="present" ${state.isSaving ? "disabled" : ""}>Asistio</button>
-              <button class="secondary-action attendance-action--warning" type="button" data-attendance-action="rescheduled" ${state.isSaving ? "disabled" : ""}>Reagendar</button>
-              <button class="secondary-action attendance-action--muted" type="button" data-attendance-action="absent" ${state.isSaving ? "disabled" : ""}>No asistio</button>
+              <button class="attendance-action-button attendance-action-button--present" type="button" data-attendance-action="present" aria-label="Registrar asistencia" ${state.isSaving ? "disabled" : ""}>
+                <span class="attendance-action-button__icon" aria-hidden="true">✓</span>
+                <span>Asistencia</span>
+              </button>
+              <button class="attendance-action-button attendance-action-button--absent" type="button" data-attendance-action="absent" aria-label="Registrar inasistencia" ${state.isSaving ? "disabled" : ""}>
+                <span class="attendance-action-button__icon" aria-hidden="true">×</span>
+                <span>Inasistencia</span>
+              </button>
+              <button class="attendance-action-button attendance-action-button--rescheduled" type="button" data-attendance-action="rescheduled" aria-label="Reagendar cita" ${state.isSaving ? "disabled" : ""}>
+                <span class="attendance-action-button__icon" aria-hidden="true">▦</span>
+                <span>Reagendar</span>
+              </button>
             `
             : ""
         }
-        <button class="secondary-action" type="button" data-medical-note-action ${canAddNote ? "" : "disabled"}>
-          ${escapeHtml(noteLabel)}
+        <button class="attendance-note-action" type="button" data-medical-note-action aria-label="${escapeHtml(noteLabel)}" ${canAddNote ? "" : "disabled"}>
+          <span class="attendance-note-action__icon" aria-hidden="true">+</span>
+          <span>${escapeHtml(noteLabel)}</span>
         </button>
       </div>
       ${renderReadOnlyHint(row, role)}

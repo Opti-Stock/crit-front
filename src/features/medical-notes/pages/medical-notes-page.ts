@@ -367,7 +367,7 @@ async function createNote(
       },
       formatVersion: "1.0",
     });
-    state.message = "Nota médica guardada correctamente";
+    state.message = "Nota médica guardada correctamente.";
     state.messageTone = "success";
     state.isLoading = true;
     render(root, state, role);
