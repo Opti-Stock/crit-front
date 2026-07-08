@@ -66,6 +66,8 @@ const CALENDAR_VIEW_OPTIONS: readonly CalendarViewMode[] = [
 const PIXELS_PER_MINUTE = 1.2;
 const APPOINTMENT_TIME_STEP_MINUTES = 5;
 const APPOINTMENT_TIME_STEP_SECONDS = APPOINTMENT_TIME_STEP_MINUTES * 60;
+const APPOINTMENT_START_HOUR = 7;
+const APPOINTMENT_END_HOUR = 18;
 const DEFAULT_PRE_SESSION_MINUTES = 5;
 const DEFAULT_POST_SESSION_MINUTES = 40;
 const PATIENT_SEARCH_DEBOUNCE_MS = 300;
@@ -270,6 +272,14 @@ function renderForm(state: CalendarState): string {
   const defaultEnd = new Date(defaultStart);
   defaultEnd.setMinutes(defaultEnd.getMinutes() + 45);
 
+  if (
+    defaultEnd.getHours() > APPOINTMENT_END_HOUR ||
+    (defaultEnd.getHours() === APPOINTMENT_END_HOUR &&
+      defaultEnd.getMinutes() > 0)
+  ) {
+    defaultEnd.setHours(APPOINTMENT_END_HOUR, 0, 0, 0);
+  }
+
   return `
     <form class="form-panel form-grid calendar-form calendar-form--panel" data-appointment-form>
       <div class="calendar-form__title">
@@ -288,8 +298,8 @@ function renderForm(state: CalendarState): string {
       ${selectField("clinicId", "Clinica", state.clinics)}
       ${selectField("roomId", "Cuarto", state.rooms)}
       ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes)}
-      <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultStart)}" required /></label>
-      <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${formatInputDateTime(defaultEnd)}" required /></label>
+      <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" min="07:00" max="18:00" value="${formatInputDateTime(defaultStart)}" required /></label>
+      <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" min="07:00" max="18:00" value="${formatInputDateTime(defaultEnd)}" required /></label>
       <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Creando..." : "Crear cita"}</button>
     </form>
   `;
@@ -866,6 +876,23 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
       void createAppointmentFromForm(root, state, data);
     },
   );
+  root
+  .querySelectorAll<HTMLInputElement>(
+    'input[name="startsAt"], input[name="endsAt"]',
+  )
+  .forEach((input) => {
+    input.addEventListener("blur", () => {
+      const date = parseAppointmentDateTime(input.value);
+
+      if (!date) {
+        return;
+      }
+
+      input.value = formatInputDateTime(
+        normalizeAppointmentDateTime(date),
+      );
+    });
+  });
 
   root.querySelectorAll<HTMLButtonElement>("[data-calendar-action]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1291,6 +1318,15 @@ async function createAppointmentFromForm(
       throw new Error("Los horarios deben usar intervalos de 5 minutos.");
     }
 
+    if (
+      !isWithinBusinessHours(startsAt) ||
+      !isWithinBusinessHours(endsAt)
+    ) {
+      throw new Error(
+        "Las citas solo pueden programarse entre las 07:00 y las 18:00."
+      );
+    }
+
     if (endsAt.getTime() <= startsAt.getTime()) {
       throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
     }
@@ -1554,18 +1590,90 @@ function parseAppointmentDateTime(value: string): Date | null {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date : null;
 }
+function isWithinBusinessHours(date: Date): boolean {
+  const minutes =
+    date.getHours() * 60 +
+    date.getMinutes();
 
+  const startMinutes = APPOINTMENT_START_HOUR * 60;
+  const endMinutes = APPOINTMENT_END_HOUR * 60;
+
+  return minutes >= startMinutes && minutes <= endMinutes;
+}
+function normalizeAppointmentDateTime(date: Date): Date {
+  const normalized = new Date(date);
+
+  normalized.setSeconds(0, 0);
+
+  // Redondear al siguiente múltiplo de 5
+  const minutes =
+    Math.ceil(normalized.getMinutes() / APPOINTMENT_TIME_STEP_MINUTES) *
+    APPOINTMENT_TIME_STEP_MINUTES;
+
+  normalized.setMinutes(minutes);
+
+  // Si pasó a la siguiente hora
+  if (normalized.getMinutes() === 60) {
+    normalized.setHours(normalized.getHours() + 1, 0, 0, 0);
+  }
+
+  // Antes de abrir
+  if (normalized.getHours() < APPOINTMENT_START_HOUR) {
+    normalized.setHours(APPOINTMENT_START_HOUR, 0, 0, 0);
+  }
+
+  // Después de cerrar
+  if (
+    normalized.getHours() > APPOINTMENT_END_HOUR ||
+    (normalized.getHours() === APPOINTMENT_END_HOUR &&
+      normalized.getMinutes() > 0)
+  ) {
+    normalized.setDate(normalized.getDate() + 1);
+    normalized.setHours(APPOINTMENT_START_HOUR, 0, 0, 0);
+  }
+
+  return normalized;
+}
 function nextBusinessStart(): Date {
   const start = new Date();
-  start.setMinutes(0, 0, 0);
+  start.setSeconds(0, 0);
 
-  if (start.getHours() < WORKDAY_START_HOUR) {
-    start.setHours(WORKDAY_START_HOUR, 0, 0, 0);
-  } else if (start.getHours() >= WORKDAY_END_HOUR) {
+  // Antes de abrir
+  if (start.getHours() < APPOINTMENT_START_HOUR) {
+    start.setHours(APPOINTMENT_START_HOUR, 0, 0, 0);
+    return start;
+  }
+
+  // Después de cerrar
+  if (
+    start.getHours() > APPOINTMENT_END_HOUR ||
+    (start.getHours() === APPOINTMENT_END_HOUR && start.getMinutes() > 0)
+  ) {
     start.setDate(start.getDate() + 1);
-    start.setHours(WORKDAY_START_HOUR, 0, 0, 0);
-  } else {
+    start.setHours(APPOINTMENT_START_HOUR, 0, 0, 0);
+    return start;
+  }
+
+  // Redondear al siguiente múltiplo de 5
+  const minutes = start.getMinutes();
+  const roundedMinutes =
+    Math.ceil(minutes / APPOINTMENT_TIME_STEP_MINUTES) *
+    APPOINTMENT_TIME_STEP_MINUTES;
+
+  start.setMinutes(roundedMinutes, 0, 0);
+
+  // Si el redondeo pasó de la hora (ej. 08:58 -> 09:00)
+  if (start.getMinutes() === 60) {
     start.setHours(start.getHours() + 1, 0, 0, 0);
+  }
+
+  // Si al redondear se pasó del horario laboral
+  if (
+    start.getHours() > APPOINTMENT_END_HOUR ||
+    (start.getHours() === APPOINTMENT_END_HOUR && start.getMinutes() > 0)
+  ) {
+    start.setDate(start.getDate() + 1);
+    start.setHours(APPOINTMENT_START_HOUR, 0, 0, 0);
   }
 
   return start;
