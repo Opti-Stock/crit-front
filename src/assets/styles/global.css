@@ -46,6 +46,7 @@ select {
   padding: 24px 18px;
   color: #f8fafc;
   background: #22313f;
+  max-height: 100vh;
 }
 
 .app-shell--admin .app-sidebar {
@@ -209,6 +210,8 @@ select {
   gap: 20px;
   min-width: 0;
   padding: 28px;
+  max-height: 100vh;
+  overflow: scroll;
 }
 
 .app-content--calendar {
@@ -1358,7 +1361,7 @@ button:disabled {
 }
 
 .handoff-conversation .handoff-create-form {
-  position: sticky;
+  order: -1;
   bottom: 0;
   z-index: 2;
   margin: 0 -16px -16px;
