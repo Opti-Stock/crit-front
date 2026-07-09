@@ -409,6 +409,65 @@ select {
   background: #f7fbfa;
 }
 
+.checkin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #d8dee5;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.checkin-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.checkin-table th,
+.checkin-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e5eaf0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.checkin-table th {
+  color: #34495e;
+  background: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.checkin-table td {
+  color: #17202a;
+  line-height: 1.45;
+}
+
+.checkin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.checkin-table td:first-child {
+  white-space: nowrap;
+}
+
+.checkin-table td:nth-child(5) {
+  min-width: 128px;
+  color: #607080;
+  font-weight: 700;
+}
+
+.checkin-table td:last-child {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.checkin-table td:last-child button {
+  min-width: 112px;
+}
+
 .checkin-filter-panel {
   padding: 18px 20px;
 }

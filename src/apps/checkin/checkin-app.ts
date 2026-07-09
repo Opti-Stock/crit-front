@@ -217,8 +217,8 @@ function renderAppointments(state: CheckinState): string {
   }
 
   return `
-    <div class="table-wrap">
-      <table>
+    <div class="table-wrap checkin-table-wrap">
+      <table class="checkin-table">
         <thead>
           <tr>
             <th>Hora</th>
