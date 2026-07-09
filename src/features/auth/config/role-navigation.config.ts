@@ -29,6 +29,12 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
     app: "main",
   },
   {
+    key: "badge-scan",
+    label: "Escaneo de gafete",
+    allowedRoles: ["recepcion"],
+    app: "main",
+  },
+  {
     key: "medical-notes",
     label: "Notas medicas",
     allowedRoles: ["coordinador", "medico", "terapeuta","direccion", "admin"],
