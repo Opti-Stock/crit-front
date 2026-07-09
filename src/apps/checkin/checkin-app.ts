@@ -76,6 +76,7 @@ function render(root: HTMLElement, state: CheckinState): void {
   root.innerHTML = `
     <main class="app-shell app-shell--checkin" aria-labelledby="checkin-title">
       <section class="app-content app-content--checkin">
+        <a class="checkin-back-button" href="/index.html#attendance" aria-label="Volver a asistencias">‹</a>
         <header class="app-header">
           <div>
             <p class="app-eyebrow">Check-in</p>
@@ -156,7 +157,10 @@ function renderScannerPanel(state: CheckinState): string {
         </div>
       </form>
       <p class="hint-text" data-camera-status>${escapeHtml(state.cameraStatus)}</p>
-      <video class="checkin-camera" data-checkin-camera muted playsinline hidden></video>
+      <div class="checkin-camera-frame" data-checkin-camera-frame hidden>
+        <video class="checkin-camera" data-checkin-camera muted playsinline></video>
+        <div class="checkin-camera-guide" aria-hidden="true"></div>
+      </div>
     </section>
   `;
 }
@@ -179,7 +183,6 @@ function renderFilterPanel(state: CheckinState): string {
         </label>
         <div class="checkin-filter-panel__actions">
           <button type="submit">Buscar</button>
-          <a class="secondary-link" href="/index.html#attendance">Volver</a>
         </div>
       </div>
     </form>
@@ -344,6 +347,7 @@ async function resolveTherapeuticAttendance(
 
 async function openCameraScanner(root: HTMLElement, state: CheckinState): Promise<void> {
   const video = root.querySelector<HTMLVideoElement>("[data-checkin-camera]");
+  const cameraFrame = root.querySelector<HTMLElement>("[data-checkin-camera-frame]");
   if (!video) return;
   if (!navigator.mediaDevices?.getUserMedia) {
     state.cameraStatus = "Camara no disponible en este navegador. Usa el campo de escaneo.";
@@ -354,15 +358,37 @@ async function openCameraScanner(root: HTMLElement, state: CheckinState): Promis
   try {
     activeScannerControls?.stop();
     activeScannerControls = null;
-    video.hidden = false;
+    if (cameraFrame) cameraFrame.hidden = false;
     state.cameraStatus = "Camara activa. Acerca el gafete al recuadro.";
     const status = root.querySelector<HTMLElement>("[data-camera-status]");
     if (status) status.textContent = state.cameraStatus;
 
-    const { BrowserMultiFormatReader } = await import("@zxing/browser");
-    const reader = new BrowserMultiFormatReader();
+    const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] =
+      await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+    const hints = new Map();
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.CODE_39,
+      BarcodeFormat.EAN_13,
+      BarcodeFormat.EAN_8,
+      BarcodeFormat.UPC_A,
+      BarcodeFormat.UPC_E,
+      BarcodeFormat.QR_CODE,
+    ]);
+    const reader = new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 120,
+      delayBetweenScanSuccess: 700,
+      tryPlayVideoTimeout: 5000,
+    });
     activeScannerControls = await reader.decodeFromConstraints(
-      { video: { facingMode: { ideal: "environment" } } },
+      {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      },
       video,
       (result, _error, controls) => {
         if (!result || state.isSaving || Date.now() < cameraScanPausedUntil) return;
