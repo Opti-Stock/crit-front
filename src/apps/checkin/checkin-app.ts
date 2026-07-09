@@ -1,3 +1,4 @@
+import type { IScannerControls } from "@zxing/browser";
 import {
   checkInAppointment,
   listCheckinAppointments,
@@ -21,17 +22,8 @@ interface CheckinState {
   message: string | null;
 }
 
-interface BarcodeDetection {
-  rawValue: string;
-}
-
-interface BarcodeDetectorInstance {
-  detect(source: HTMLVideoElement): Promise<BarcodeDetection[]>;
-}
-
-type BarcodeDetectorConstructor = new (options: {
-  formats: string[];
-}) => BarcodeDetectorInstance;
+let activeScannerControls: IScannerControls | null = null;
+let cameraScanPausedUntil = 0;
 
 export function mountCheckinApp(root: HTMLElement): void {
   const today = new Date().toISOString().slice(0, 10);
@@ -95,18 +87,7 @@ function render(root: HTMLElement, state: CheckinState): void {
         <section class="feature-page checkin-page">
           ${state.message ? `<p class="inline-alert" role="status">${escapeHtml(state.message)}</p>` : ""}
           ${renderScannerPanel(state)}
-          <form class="filter-form" data-checkin-filter-form>
-            <label>
-              Fecha
-              <input type="date" name="date" value="${escapeHtml(state.date)}" />
-            </label>
-            <label>
-              Buscar paciente
-              <input type="search" name="search" value="${escapeHtml(state.search)}" placeholder="Nombre del paciente o profesional" />
-            </label>
-            <button type="submit">Buscar</button>
-            <a class="secondary-link" href="/index.html#attendance">Volver</a>
-          </form>
+          ${renderFilterPanel(state)}
 
           ${state.scanned ? renderScannedPatientCard(state) : ""}
           ${state.isLoading ? `<p class="empty-state">Cargando citas...</p>` : renderAppointments(state)}
@@ -157,9 +138,12 @@ function render(root: HTMLElement, state: CheckinState): void {
 function renderScannerPanel(state: CheckinState): string {
   return `
     <section class="app-panel checkin-scanner-panel">
-      <div>
-        <p class="app-eyebrow">Escaneo de gafete</p>
-        <h2>${state.mode === "reception-checkin" ? "Recepcion principal" : "Atencion terapeutica"}</h2>
+      <div class="checkin-scanner-panel__header">
+        <div>
+          <p class="app-eyebrow">Escaneo de gafete</p>
+          <h2>${state.mode === "reception-checkin" ? "Recepcion principal" : "Atencion terapeutica"}</h2>
+        </div>
+        <span class="checkin-mode-badge">${state.mode === "reception-checkin" ? "Check-in diario" : "Asistencia terapeutica"}</span>
       </div>
       <form class="checkin-scan-form" data-badge-scan-form>
         <label class="checkin-scan-form__input">
@@ -174,6 +158,31 @@ function renderScannerPanel(state: CheckinState): string {
       <p class="hint-text" data-camera-status>${escapeHtml(state.cameraStatus)}</p>
       <video class="checkin-camera" data-checkin-camera muted playsinline hidden></video>
     </section>
+  `;
+}
+
+function renderFilterPanel(state: CheckinState): string {
+  return `
+    <form class="app-panel checkin-filter-panel" data-checkin-filter-form>
+      <div>
+        <p class="app-eyebrow">Citas visibles</p>
+        <h2>Filtrar agenda</h2>
+      </div>
+      <div class="checkin-filter-panel__grid">
+        <label>
+          Fecha
+          <input type="date" name="date" value="${escapeHtml(state.date)}" />
+        </label>
+        <label>
+          Buscar paciente
+          <input type="search" name="search" value="${escapeHtml(state.search)}" placeholder="Nombre, folio o profesional" />
+        </label>
+        <div class="checkin-filter-panel__actions">
+          <button type="submit">Buscar</button>
+          <a class="secondary-link" href="/index.html#attendance">Volver</a>
+        </div>
+      </div>
+    </form>
   `;
 }
 
@@ -266,23 +275,38 @@ async function registerCheckIn(
   }
 }
 
-async function scanBadge(root: HTMLElement, state: CheckinState, code: string): Promise<void> {
+async function scanBadge(
+  root: HTMLElement,
+  state: CheckinState,
+  code: string,
+  options: { fromCamera?: boolean; controls?: IScannerControls } = {},
+): Promise<void> {
   if (state.isSaving) return;
   try {
     state.isSaving = true;
     state.scanned = await scanBadgeCheckIn({ code, date: state.date });
     state.message = state.scanned.alreadyCheckedIn ? "El paciente ya tenia check-in hoy." : "Check-in registrado correctamente.";
+    options.controls?.stop();
     await load(root, state);
     if (state.mode === "reception-checkin") {
       window.setTimeout(() => {
         state.scanned = null;
         state.message = null;
         render(root, state);
+        if (options.fromCamera) void openCameraScanner(root, state);
       }, 3000);
     }
   } catch (error) {
-    state.message = error instanceof Error ? error.message : "No se pudo registrar el gafete.";
-    render(root, state);
+    const message = error instanceof Error ? error.message : "No se encontro un paciente con ese codigo.";
+    showScanOverlay(root, {
+      title: "Codigo no valido",
+      message,
+      tone: "danger",
+    });
+    if (!options.fromCamera) {
+      state.message = null;
+    }
+    cameraScanPausedUntil = Date.now() + 5000;
   } finally {
     state.isSaving = false;
   }
@@ -309,6 +333,7 @@ async function resolveTherapeuticAttendance(
     state.scanned = null;
     state.message = "Asistencia actualizada.";
     await load(root, state);
+    void openCameraScanner(root, state);
   } catch (error) {
     state.message = error instanceof Error ? error.message : "No se pudo actualizar la asistencia.";
     render(root, state);
@@ -320,9 +345,6 @@ async function resolveTherapeuticAttendance(
 async function openCameraScanner(root: HTMLElement, state: CheckinState): Promise<void> {
   const video = root.querySelector<HTMLVideoElement>("[data-checkin-camera]");
   if (!video) return;
-  const barcodeDetectorCtor = (window as Window & {
-    BarcodeDetector?: BarcodeDetectorConstructor;
-  }).BarcodeDetector;
   if (!navigator.mediaDevices?.getUserMedia) {
     state.cameraStatus = "Camara no disponible en este navegador. Usa el campo de escaneo.";
     render(root, state);
@@ -330,40 +352,49 @@ async function openCameraScanner(root: HTMLElement, state: CheckinState): Promis
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    video.srcObject = stream;
+    activeScannerControls?.stop();
+    activeScannerControls = null;
     video.hidden = false;
-    await video.play();
-    if (!barcodeDetectorCtor) {
-      state.cameraStatus = "Permiso de camara activo. Este navegador no lee codigos automaticamente; usa el lector fisico o captura manual.";
-      const status = root.querySelector<HTMLElement>("[data-camera-status]");
-      if (status) status.textContent = state.cameraStatus;
-      return;
-    }
-    state.cameraStatus = "Camara activa. Acerca el gafete al lector.";
+    state.cameraStatus = "Camara activa. Acerca el gafete al recuadro.";
     const status = root.querySelector<HTMLElement>("[data-camera-status]");
     if (status) status.textContent = state.cameraStatus;
 
-    const detector = new barcodeDetectorCtor({ formats: ["code_128", "code_39", "ean_13", "qr_code"] });
-    const scanLoop = async () => {
-      if (!video.isConnected || video.hidden) return;
-      const codes = await detector.detect(video);
-      const code = codes[0]?.rawValue;
-      if (code) {
-        stream.getTracks().forEach((track) => track.stop());
-        await scanBadge(root, state, code);
-        if (state.mode === "reception-checkin") {
-          window.setTimeout(() => void openCameraScanner(root, state), 3200);
-        }
-        return;
-      }
-      window.setTimeout(scanLoop, 250);
-    };
-    window.setTimeout(scanLoop, 500);
+    const { BrowserMultiFormatReader } = await import("@zxing/browser");
+    const reader = new BrowserMultiFormatReader();
+    activeScannerControls = await reader.decodeFromConstraints(
+      { video: { facingMode: { ideal: "environment" } } },
+      video,
+      (result, _error, controls) => {
+        if (!result || state.isSaving || Date.now() < cameraScanPausedUntil) return;
+        const code = result.getText().trim();
+        if (!code) return;
+        void scanBadge(root, state, code, { fromCamera: true, controls });
+      },
+    );
   } catch {
     state.cameraStatus = "No se pudo abrir la camara. Usa el campo de escaneo.";
     render(root, state);
   }
+}
+
+function showScanOverlay(
+  root: HTMLElement,
+  input: { title: string; message: string; tone: "danger" | "success" },
+): void {
+  root.querySelector("[data-scan-overlay]")?.remove();
+  const overlay = document.createElement("div");
+  overlay.className = `checkin-scan-overlay checkin-scan-overlay--${input.tone}`;
+  overlay.dataset.scanOverlay = "true";
+  overlay.setAttribute("role", "status");
+  overlay.innerHTML = `
+    <article class="checkin-scan-overlay__card">
+      <p class="app-eyebrow">${input.tone === "danger" ? "Escaneo rechazado" : "Escaneo correcto"}</p>
+      <h2>${escapeHtml(input.title)}</h2>
+      <p>${escapeHtml(input.message)}</p>
+    </article>
+  `;
+  root.appendChild(overlay);
+  window.setTimeout(() => overlay.remove(), 5000);
 }
 
 function formatTimeRange(startsAt: string, endsAt: string): string {

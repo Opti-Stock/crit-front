@@ -326,6 +326,10 @@ select {
   align-items: start;
 }
 
+.checkin-page .app-eyebrow {
+  margin-bottom: 4px;
+}
+
 .checkin-page .app-panel,
 .checkin-page .table-wrap,
 .checkin-page .empty-state {
@@ -335,7 +339,29 @@ select {
 
 .checkin-scanner-panel {
   grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 24px;
+}
+
+.checkin-scanner-panel__header,
+.checkin-filter-panel__grid {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
+}
+
+.checkin-mode-badge {
+  display: inline-grid;
+  place-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #cad3dc;
+  border-radius: 999px;
+  color: #34495e;
+  background: #f7fafc;
+  font-size: 0.86rem;
+  font-weight: 800;
 }
 
 .checkin-scan-form {
@@ -354,8 +380,8 @@ select {
 
 .checkin-scan-form__input input {
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
+  min-height: 48px;
+  padding: 11px 14px;
   border: 1px solid #cad3dc;
   border-radius: 8px;
   color: #17202a;
@@ -369,17 +395,84 @@ select {
 }
 
 .checkin-camera {
-  width: min(100%, 720px);
+  width: min(100%, 760px);
   aspect-ratio: 16 / 9;
   border: 1px solid #cad3dc;
   border-radius: 8px;
   background: #17202a;
   object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .checkin-scan-card {
   border-color: #9bc4c0;
   background: #f7fbfa;
+}
+
+.checkin-filter-panel {
+  padding: 18px 20px;
+}
+
+.checkin-filter-panel h2 {
+  font-size: 1rem;
+}
+
+.checkin-filter-panel__grid {
+  align-items: end;
+}
+
+.checkin-filter-panel label {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 6px;
+  min-width: 0;
+  color: #17202a;
+  font-weight: 700;
+}
+
+.checkin-filter-panel input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #cad3dc;
+  border-radius: 8px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.checkin-filter-panel__actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.checkin-scan-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(244, 246, 248, 0.68);
+  backdrop-filter: grayscale(1) blur(2px);
+}
+
+.checkin-scan-overlay__card {
+  display: grid;
+  gap: 8px;
+  width: min(420px, 100%);
+  padding: 22px;
+  border: 1px solid #efb4a9;
+  border-radius: 8px;
+  color: #8a1f11;
+  background: #fff4f2;
+  box-shadow: 0 18px 46px rgba(23, 32, 42, 0.2);
+}
+
+.checkin-scan-overlay__card h2,
+.checkin-scan-overlay__card p {
+  margin: 0;
 }
 
 .feature-header,
@@ -1027,6 +1120,26 @@ button:disabled,
 
   .attendance-card__content {
     padding: 14px;
+  }
+
+  .checkin-scanner-panel__header,
+  .checkin-scan-form,
+  .checkin-filter-panel__grid,
+  .checkin-filter-panel__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .checkin-scan-form {
+    grid-template-columns: 1fr;
+  }
+
+  .checkin-scan-form__actions,
+  .checkin-scan-form__actions button,
+  .checkin-filter-panel__actions,
+  .checkin-filter-panel__actions button,
+  .checkin-filter-panel__actions a {
+    width: 100%;
   }
 
   .attendance-status-badge {
