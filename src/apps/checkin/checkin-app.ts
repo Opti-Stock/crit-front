@@ -82,8 +82,8 @@ function render(root: HTMLElement, state: CheckinState): void {
   const session = sessionService.getSession();
 
   root.innerHTML = `
-    <main class="app-shell app-shell--main" aria-labelledby="checkin-title">
-      <section class="app-content">
+    <main class="app-shell app-shell--checkin" aria-labelledby="checkin-title">
+      <section class="app-content app-content--checkin">
         <header class="app-header">
           <div>
             <p class="app-eyebrow">Check-in</p>
@@ -92,7 +92,7 @@ function render(root: HTMLElement, state: CheckinState): void {
           <span class="app-status">${escapeHtml(session?.user?.email ?? "Sesion requerida")}</span>
         </header>
 
-        <section class="feature-page">
+        <section class="feature-page checkin-page">
           ${state.message ? `<p class="inline-alert" role="status">${escapeHtml(state.message)}</p>` : ""}
           ${renderScannerPanel(state)}
           <form class="filter-form" data-checkin-filter-form>
@@ -156,14 +156,20 @@ function render(root: HTMLElement, state: CheckinState): void {
 
 function renderScannerPanel(state: CheckinState): string {
   return `
-    <section class="app-panel">
-      <form class="filter-form" data-badge-scan-form>
-        <label>
-          Escanear gafete
-          <input data-badge-code type="search" autocomplete="off" placeholder="Codigo de barras del paciente" autofocus />
+    <section class="app-panel checkin-scanner-panel">
+      <div>
+        <p class="app-eyebrow">Escaneo de gafete</p>
+        <h2>${state.mode === "reception-checkin" ? "Recepcion principal" : "Atencion terapeutica"}</h2>
+      </div>
+      <form class="checkin-scan-form" data-badge-scan-form>
+        <label class="checkin-scan-form__input">
+          Codigo de gafete
+          <input data-badge-code type="search" autocomplete="off" placeholder="Escanea o escribe el codigo" autofocus />
         </label>
-        <button type="submit" ${state.isSaving ? "disabled" : ""}>Check-in manual</button>
-        <button class="secondary-action" type="button" data-open-camera>Camara</button>
+        <div class="checkin-scan-form__actions">
+          <button type="submit" ${state.isSaving ? "disabled" : ""}>Check-in manual</button>
+          <button class="secondary-action" type="button" data-open-camera>Activar camara</button>
+        </div>
       </form>
       <p class="hint-text" data-camera-status>${escapeHtml(state.cameraStatus)}</p>
       <video class="checkin-camera" data-checkin-camera muted playsinline hidden></video>
@@ -317,7 +323,7 @@ async function openCameraScanner(root: HTMLElement, state: CheckinState): Promis
   const barcodeDetectorCtor = (window as Window & {
     BarcodeDetector?: BarcodeDetectorConstructor;
   }).BarcodeDetector;
-  if (!navigator.mediaDevices?.getUserMedia || !barcodeDetectorCtor) {
+  if (!navigator.mediaDevices?.getUserMedia) {
     state.cameraStatus = "Camara no disponible en este navegador. Usa el campo de escaneo.";
     render(root, state);
     return;
@@ -328,6 +334,12 @@ async function openCameraScanner(root: HTMLElement, state: CheckinState): Promis
     video.srcObject = stream;
     video.hidden = false;
     await video.play();
+    if (!barcodeDetectorCtor) {
+      state.cameraStatus = "Permiso de camara activo. Este navegador no lee codigos automaticamente; usa el lector fisico o captura manual.";
+      const status = root.querySelector<HTMLElement>("[data-camera-status]");
+      if (status) status.textContent = state.cameraStatus;
+      return;
+    }
     state.cameraStatus = "Camara activa. Acerca el gafete al lector.";
     const status = root.querySelector<HTMLElement>("[data-camera-status]");
     if (status) status.textContent = state.cameraStatus;

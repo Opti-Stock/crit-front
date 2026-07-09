@@ -39,6 +39,10 @@ select {
   overflow: hidden;
 }
 
+.app-shell--checkin {
+  grid-template-columns: 1fr;
+}
+
 .app-sidebar {
   display: flex;
   flex-direction: column;
@@ -248,6 +252,12 @@ select {
   white-space: normal;
 }
 
+.app-content--checkin {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
 .app-header {
   display: flex;
   align-items: flex-start;
@@ -310,6 +320,66 @@ select {
 .feature-page {
   display: grid;
   gap: 18px;
+}
+
+.checkin-page {
+  align-items: start;
+}
+
+.checkin-page .app-panel,
+.checkin-page .table-wrap,
+.checkin-page .empty-state {
+  width: 100%;
+  max-width: none;
+}
+
+.checkin-scanner-panel {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.checkin-scan-form {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.checkin-scan-form__input {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.checkin-scan-form__input input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cad3dc;
+  border-radius: 8px;
+  color: #17202a;
+  background: #ffffff;
+}
+
+.checkin-scan-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkin-camera {
+  width: min(100%, 720px);
+  aspect-ratio: 16 / 9;
+  border: 1px solid #cad3dc;
+  border-radius: 8px;
+  background: #17202a;
+  object-fit: cover;
+}
+
+.checkin-scan-card {
+  border-color: #9bc4c0;
+  background: #f7fbfa;
 }
 
 .feature-header,
