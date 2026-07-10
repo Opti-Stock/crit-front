@@ -93,7 +93,9 @@ function render(root: HTMLElement, state: CheckinState): void {
           ${renderFilterPanel(state)}
 
           ${state.scanned ? renderScannedPatientCard(state, "inline") : ""}
-          ${state.isLoading ? `<p class="empty-state">Cargando citas...</p>` : renderAppointments(state)}
+          <div data-checkin-results>
+            ${state.isLoading ? `<p class="empty-state">Cargando citas...</p>` : renderAppointments(state)}
+          </div>
         </section>
       </section>
     </main>
@@ -111,9 +113,7 @@ function render(root: HTMLElement, state: CheckinState): void {
   );
 
   root.querySelectorAll<HTMLButtonElement>("[data-checkin-appointment-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      void registerCheckIn(root, state, button.dataset.checkinAppointmentId);
-    });
+    bindCheckInButton(root, state, button);
   });
 
   root.querySelector<HTMLFormElement>("[data-badge-scan-form]")?.addEventListener("submit", (event) => {
@@ -129,11 +129,7 @@ function render(root: HTMLElement, state: CheckinState): void {
   });
 
   root.querySelectorAll<HTMLButtonElement>("[data-therapeutic-attendance-action]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const action = button.dataset.therapeuticAttendanceAction as "present" | "absent" | "rescheduled";
-      const appointmentId = button.dataset.appointmentId;
-      void resolveTherapeuticAttendance(root, state, appointmentId, action);
-    });
+    bindTherapeuticAttendanceButton(root, state, button);
   });
 
   root.querySelector<HTMLButtonElement>("[data-scan-card-close]")?.addEventListener("click", () => {
@@ -332,13 +328,18 @@ async function scanBadge(
     state.isSaving = true;
     state.lastScannedCode = code;
     state.scanned = await scanBadgeCheckIn({ code, date: state.date, mode: state.mode });
+    mergeScannedAppointments(state);
     state.message = null;
 
     if (options.fromCamera) {
+      updateCheckinResults(root, state);
       showScannedResultOverlay(root, state);
       if (state.mode === "reception-checkin") {
         cameraScanPausedUntil = Date.now() + 3000;
-        window.setTimeout(() => closeScannedResult(root, state, { renderPage: false }), 3000);
+        window.setTimeout(() => {
+          closeScannedResult(root, state, { renderPage: false });
+          updateCheckinResults(root, state);
+        }, 3000);
       } else {
         cameraScanPausedUntil = Number.POSITIVE_INFINITY;
       }
@@ -376,11 +377,7 @@ function showScannedResultOverlay(root: HTMLElement, state: CheckinState): void 
 
   root.querySelectorAll<HTMLButtonElement>("[data-scan-result-overlay] [data-therapeutic-attendance-action]")
     .forEach((button) => {
-      button.addEventListener("click", () => {
-        const action = button.dataset.therapeuticAttendanceAction as "present" | "absent" | "rescheduled";
-        const appointmentId = button.dataset.appointmentId;
-        void resolveTherapeuticAttendance(root, state, appointmentId, action, { fromOverlay: true });
-      });
+      bindTherapeuticAttendanceButton(root, state, button, { fromOverlay: true });
     });
 }
 
@@ -472,6 +469,7 @@ async function resolveTherapeuticAttendance(
             }
           : candidate
       );
+      updateCheckinResults(root, state);
       return;
     }
     await load(root, state);
@@ -491,6 +489,52 @@ async function resolveTherapeuticAttendance(
   } finally {
     state.isSaving = false;
   }
+}
+
+function mergeScannedAppointments(state: CheckinState): void {
+  if (!state.scanned?.appointments.length) return;
+
+  const updates = new Map(state.scanned.appointments.map((appointment) => [appointment.id, appointment]));
+  const existingIds = new Set(state.appointments.map((appointment) => appointment.id));
+  state.appointments = [
+    ...state.appointments.map((appointment) => updates.get(appointment.id) ?? appointment),
+    ...state.scanned.appointments.filter((appointment) => !existingIds.has(appointment.id)),
+  ].sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime());
+}
+
+function updateCheckinResults(root: HTMLElement, state: CheckinState): void {
+  const results = root.querySelector<HTMLElement>("[data-checkin-results]");
+  if (!results) return;
+  results.innerHTML = state.isLoading ? `<p class="empty-state">Cargando citas...</p>` : renderAppointments(state);
+  results.querySelectorAll<HTMLButtonElement>("[data-checkin-appointment-id]").forEach((button) => {
+    bindCheckInButton(root, state, button);
+  });
+  results.querySelectorAll<HTMLButtonElement>("[data-therapeutic-attendance-action]").forEach((button) => {
+    bindTherapeuticAttendanceButton(root, state, button);
+  });
+}
+
+function bindCheckInButton(
+  root: HTMLElement,
+  state: CheckinState,
+  button: HTMLButtonElement,
+): void {
+  button.addEventListener("click", () => {
+    void registerCheckIn(root, state, button.dataset.checkinAppointmentId);
+  });
+}
+
+function bindTherapeuticAttendanceButton(
+  root: HTMLElement,
+  state: CheckinState,
+  button: HTMLButtonElement,
+  options: { fromOverlay?: boolean } = {},
+): void {
+  button.addEventListener("click", () => {
+    const action = button.dataset.therapeuticAttendanceAction as "present" | "absent" | "rescheduled";
+    const appointmentId = button.dataset.appointmentId;
+    void resolveTherapeuticAttendance(root, state, appointmentId, action, options);
+  });
 }
 
 async function openCameraScanner(root: HTMLElement, state: CheckinState): Promise<void> {

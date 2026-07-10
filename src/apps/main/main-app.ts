@@ -332,6 +332,8 @@ function formatRoleLabel(role: string): string {
       return "Direccion";
     case "recepcion":
       return "Recepcion";
+    case "recepcion_general":
+      return "Recepcion general";
     case "coordinador":
       return "Coordinador";
     case "medico":

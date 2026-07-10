@@ -31,7 +31,7 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
   {
     key: "badge-scan",
     label: "Escaneo de gafete",
-    allowedRoles: ["recepcion"],
+    allowedRoles: ["recepcion", "recepcion_general"],
     app: "main",
   },
   {
