@@ -29,8 +29,10 @@ let cameraScanPausedUntil = 0;
 export function mountCheckinApp(root: HTMLElement): void {
   const today = new Date().toISOString().slice(0, 10);
   const params = new URLSearchParams(window.location.search);
+  const session = sessionService.getSession();
+  const isGeneralReception = session?.role === "recepcion_general";
   const state: CheckinState = {
-    date: params.get("date") || today,
+    date: params.get("date") || (isGeneralReception ? "" : today),
     search: "",
     mode: params.get("mode") === "therapeutic-attendance" ? "therapeutic-attendance" : "reception-checkin",
     appointments: [],
@@ -58,9 +60,9 @@ async function load(root: HTMLElement, state: CheckinState): Promise<void> {
     state.isLoading = true;
     render(root, state);
     state.appointments = await listCheckinAppointments({
-      date: state.date,
+      date: state.date || undefined,
       search: state.search || undefined,
-      status: "scheduled",
+      status: sessionService.getSession()?.role === "recepcion_general" ? undefined : "scheduled",
     });
     state.message = null;
   } catch (error) {
