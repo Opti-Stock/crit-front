@@ -380,7 +380,7 @@ function renderSidebar(
               ${statusSelect("attendanceStatus", "Estado de asistencia", state.filters.attendanceStatus, [
                 ["present", "Asistencia"],
                 ["absent", "Inasistencia"],
-                ["rescheduled", "Reprogramada"],
+                ["rescheduled", "Por reagendar"],
               ])}
             `
             : ""
@@ -434,6 +434,7 @@ function renderLegend(): string {
     "scheduled",
     "cancelled",
     "rescheduled",
+    "reschedule_requested",
     "present",
     "absent",
   ];

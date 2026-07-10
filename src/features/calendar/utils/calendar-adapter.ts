@@ -51,8 +51,16 @@ function deriveVisualState(
   appointment: AppointmentSummary,
   attendance: AttendanceSummary | null,
 ): CalendarVisualState {
+  if (attendance?.status === "rescheduled") {
+    return "reschedule_requested";
+  }
+
   if (attendance?.status) {
     return attendance.status;
+  }
+
+  if (appointment.attendanceStatus === "rescheduled") {
+    return "reschedule_requested";
   }
 
   if (appointment.attendanceStatus && appointment.attendanceStatus !== "pending") {

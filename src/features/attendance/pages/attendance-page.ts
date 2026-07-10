@@ -87,7 +87,7 @@ const STATUS_CONFIG: Record<
   { label: string; icon: string; tone: "success" | "warning" | "muted" | "neutral" }
 > = {
   present: { label: "Asistio", icon: "OK", tone: "success" },
-  rescheduled: { label: "Reagendada", icon: "R", tone: "warning" },
+  rescheduled: { label: "Por reagendar", icon: "R", tone: "warning" },
   absent: { label: "No asistio", icon: "NO", tone: "muted" },
   unregistered: { label: "Sin registrar", icon: "-", tone: "neutral" },
   auto_absent_due: {
