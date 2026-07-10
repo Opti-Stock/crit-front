@@ -30,6 +30,12 @@ export interface ScanCheckinResult {
   patient: { id: string; fullName: string; externalId: string | null };
   checkedIn: boolean;
   alreadyCheckedIn: boolean;
+  scanStatus:
+    | "checkin_registered"
+    | "already_checked_in"
+    | "no_appointments_today"
+    | "therapeutic_match"
+    | "therapeutic_no_appointments";
   appointments: CheckinAppointmentSummary[];
 }
 
@@ -60,7 +66,11 @@ export function checkInAppointment(appointmentId: string) {
   );
 }
 
-export function scanBadgeCheckIn(input: { code: string; date?: string }) {
+export function scanBadgeCheckIn(input: {
+  code: string;
+  date?: string;
+  mode?: "reception-checkin" | "therapeutic-attendance";
+}) {
   return checkinApiClient.request<ScanCheckinResult>("/scan", {
     method: "POST",
     body: input,
