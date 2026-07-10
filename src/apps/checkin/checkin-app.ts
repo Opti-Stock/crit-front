@@ -220,7 +220,7 @@ function renderScannedPatientCard(
               <div class="button-row checkin-scan-card__actions">
                 <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
                 <button type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">Inasistencia</button>
-                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Reagendar</button>
+                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Solicitar reagendar</button>
               </div>
             `
             : ""
@@ -292,7 +292,7 @@ function renderAppointmentRow(
               <div class="checkin-table-actions">
                 <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
                 <button class="secondary-action" type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">Inasistencia</button>
-                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Reagendar</button>
+                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Solicitar reagendar</button>
               </div>
             `
         }
@@ -449,19 +449,27 @@ async function resolveTherapeuticAttendance(
 
   try {
     state.isSaving = true;
-    if (appointment.attendance?.id) {
-      await updateAttendanceStatus(appointment.attendance.id, { status });
-    } else {
-      await createAttendance({ appointmentId, status, notesRequired: status === "present" });
-    }
+    const attendance = appointment.attendance?.id
+      ? await updateAttendanceStatus(appointment.attendance.id, { status })
+      : await createAttendance({ appointmentId, status, notesRequired: status === "present" });
     state.scanned = null;
-    state.message = "Asistencia actualizada.";
+    state.message = status === "rescheduled"
+      ? "Solicitud de reagendar enviada a recepcion."
+      : "Asistencia actualizada.";
     cameraScanPausedUntil = 0;
     root.querySelector("[data-scan-result-overlay]")?.remove();
     if (options.fromOverlay) {
       state.appointments = state.appointments.map((candidate) =>
         candidate.id === appointment.id
-          ? { ...candidate, attendanceStatus: status }
+          ? {
+              ...candidate,
+              attendanceStatus: attendance.status,
+              attendance: {
+                id: attendance.id,
+                status: attendance.status,
+                checkedAt: attendance.checkedAt
+              }
+            }
           : candidate
       );
       return;
