@@ -134,6 +134,13 @@ function render(root: HTMLElement, state: CheckinState): void {
       void resolveTherapeuticAttendance(root, state, appointmentId, action);
     });
   });
+
+  root.querySelector<HTMLButtonElement>("[data-scan-card-close]")?.addEventListener("click", () => {
+    state.scanned = null;
+    state.message = null;
+    render(root, state);
+    void openCameraScanner(root, state);
+  });
 }
 
 function renderScannerPanel(state: CheckinState): string {
@@ -152,7 +159,9 @@ function renderScannerPanel(state: CheckinState): string {
           <input data-badge-code type="search" autocomplete="off" placeholder="Escanea o escribe el codigo" autofocus />
         </label>
         <div class="checkin-scan-form__actions">
-          <button type="submit" ${state.isSaving ? "disabled" : ""}>Check-in manual</button>
+          <button type="submit" ${state.isSaving ? "disabled" : ""}>
+            ${state.mode === "reception-checkin" ? "Check-in manual" : "Escanear manual"}
+          </button>
           <button class="secondary-action" type="button" data-open-camera>Activar camara</button>
         </div>
       </form>
@@ -192,15 +201,19 @@ function renderFilterPanel(state: CheckinState): string {
 function renderScannedPatientCard(state: CheckinState): string {
   const result = state.scanned;
   if (!result) return "";
-  const checkedLabel = result.alreadyCheckedIn ? "Ya tenia check-in hoy" : "Check-in registrado";
   const appointment = result.appointments[0];
+  const isTherapeutic = state.mode === "therapeutic-attendance";
+  const cardTone = resolveScanCardTone(result);
+  const title = resolveScanCardTitle(result, isTherapeutic);
+  const description = resolveScanCardDescription(result, isTherapeutic);
   return `
-    <article class="app-panel checkin-scan-card">
-      <p class="app-eyebrow">${escapeHtml(checkedLabel)}</p>
+    <article class="app-panel checkin-scan-card checkin-scan-card--${cardTone}">
+      <button class="checkin-scan-card__close" type="button" data-scan-card-close aria-label="Cerrar resultado">x</button>
+      <p class="app-eyebrow">${escapeHtml(title)}</p>
       <h2>${escapeHtml(result.patient.fullName)}</h2>
-      <p class="hint-text">${result.appointments.length} citas del dia con check-in.</p>
+      <p class="hint-text">${escapeHtml(description)}</p>
       ${
-        state.mode === "therapeutic-attendance" && appointment
+        isTherapeutic && appointment
           ? `
             <div class="button-row">
               <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
@@ -228,31 +241,47 @@ function renderAppointments(state: CheckinState): string {
             <th>Paciente</th>
             <th>Profesional</th>
             <th>Area</th>
-            <th>Check-in</th>
+            <th>${state.mode === "reception-checkin" ? "Check-in" : "Asistencia"}</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          ${state.appointments.map(renderAppointmentRow).join("")}
+          ${state.appointments.map((appointment) => renderAppointmentRow(appointment, state.mode)).join("")}
         </tbody>
       </table>
     </div>
   `;
 }
 
-function renderAppointmentRow(appointment: CheckinAppointmentSummary): string {
+function renderAppointmentRow(
+  appointment: CheckinAppointmentSummary,
+  mode: CheckinState["mode"],
+): string {
   const checkedIn = appointment.checkInStatus === "checked_in";
+  const attendanceLabel = appointment.attendance?.status ?? "Sin asistencia";
   return `
     <tr>
       <td>${escapeHtml(formatTimeRange(appointment.startsAt, appointment.endsAt))}</td>
       <td>${escapeHtml(appointment.patient.fullName)}</td>
       <td>${escapeHtml(appointment.collaborator.fullName)}</td>
       <td>${escapeHtml(appointment.clinic.name)}</td>
-      <td>${checkedIn ? "Con check-in" : "Sin check-in"}</td>
+      <td>${mode === "reception-checkin" ? (checkedIn ? "Con check-in" : "Sin check-in") : escapeHtml(attendanceLabel)}</td>
       <td>
-        <button type="button" data-checkin-appointment-id="${escapeHtml(appointment.id)}" ${checkedIn ? "disabled" : ""}>
-          Registrar
-        </button>
+        ${
+          mode === "reception-checkin"
+            ? `
+              <button type="button" data-checkin-appointment-id="${escapeHtml(appointment.id)}" ${checkedIn ? "disabled" : ""}>
+                Registrar
+              </button>
+            `
+            : `
+              <div class="checkin-table-actions">
+                <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
+                <button class="secondary-action" type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">Inasistencia</button>
+                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Reagendar</button>
+              </div>
+            `
+        }
       </td>
     </tr>
   `;
@@ -287,8 +316,8 @@ async function scanBadge(
   if (state.isSaving) return;
   try {
     state.isSaving = true;
-    state.scanned = await scanBadgeCheckIn({ code, date: state.date });
-    state.message = state.scanned.alreadyCheckedIn ? "El paciente ya tenia check-in hoy." : "Check-in registrado correctamente.";
+    state.scanned = await scanBadgeCheckIn({ code, date: state.date, mode: state.mode });
+    state.message = null;
     options.controls?.stop();
     await load(root, state);
     if (state.mode === "reception-checkin") {
@@ -313,6 +342,42 @@ async function scanBadge(
   } finally {
     state.isSaving = false;
   }
+}
+
+function resolveScanCardTone(result: ScanCheckinResult): "success" | "warning" {
+  return result.scanStatus === "no_appointments_today" || result.scanStatus === "therapeutic_no_appointments"
+    ? "warning"
+    : "success";
+}
+
+function resolveScanCardTitle(result: ScanCheckinResult, isTherapeutic: boolean): string {
+  if (isTherapeutic) {
+    return result.scanStatus === "therapeutic_no_appointments"
+      ? "Paciente sin citas visibles hoy"
+      : "Paciente encontrado";
+  }
+
+  if (result.scanStatus === "no_appointments_today") {
+    return "Paciente sin citas hoy";
+  }
+
+  return result.scanStatus === "already_checked_in"
+    ? "Check-in ya realizado"
+    : "Check-in realizado";
+}
+
+function resolveScanCardDescription(result: ScanCheckinResult, isTherapeutic: boolean): string {
+  if (isTherapeutic) {
+    return result.appointments.length > 0
+      ? "Selecciona asistencia, inasistencia o reagendar para cerrar este escaneo."
+      : "El paciente es valido, pero no tiene citas visibles para tu acceso en la fecha seleccionada.";
+  }
+
+  if (result.scanStatus === "no_appointments_today") {
+    return "El paciente es valido en este CRIT, pero no tiene citas el dia de hoy.";
+  }
+
+  return `${result.appointments.length} cita${result.appointments.length === 1 ? "" : "s"} del dia con check-in.`;
 }
 
 async function resolveTherapeuticAttendance(

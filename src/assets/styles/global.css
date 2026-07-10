@@ -461,8 +461,43 @@ select {
 }
 
 .checkin-scan-card {
+  position: relative;
+  padding-right: 56px;
+}
+
+.checkin-scan-card--success {
   border-color: #9bc4c0;
-  background: #f7fbfa;
+  background: #f2fbf7;
+}
+
+.checkin-scan-card--warning {
+  border-color: #f0d37a;
+  background: #fff9e6;
+}
+
+.checkin-scan-card__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #cad3dc;
+  border-radius: 999px;
+  color: #34495e;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.checkin-scan-card__close:hover {
+  color: #ffffff;
+  background: #22313f;
 }
 
 .checkin-table-wrap {
@@ -522,6 +557,17 @@ select {
 
 .checkin-table td:last-child button {
   min-width: 112px;
+}
+
+.checkin-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.checkin-table-actions button {
+  min-width: 104px;
 }
 
 .checkin-filter-panel {
