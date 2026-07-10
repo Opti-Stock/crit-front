@@ -462,6 +462,7 @@ select {
 
 .checkin-scan-card {
   position: relative;
+  width: min(620px, calc(100vw - 32px));
   padding-right: 56px;
 }
 
@@ -498,6 +499,43 @@ select {
 .checkin-scan-card__close:hover {
   color: #ffffff;
   background: #22313f;
+}
+
+.checkin-result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(244, 246, 248, 0.42);
+  backdrop-filter: blur(1px);
+}
+
+.checkin-result-overlay .checkin-scan-card {
+  box-shadow: 0 24px 70px rgba(23, 32, 42, 0.24);
+}
+
+.checkin-scan-card__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+}
+
+.checkin-scan-card__actions button {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .checkin-result-overlay {
+    align-items: end;
+    padding: 14px;
+  }
+
+  .checkin-scan-card__actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .checkin-table-wrap {
