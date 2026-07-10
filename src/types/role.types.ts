@@ -2,6 +2,7 @@ export const USER_ROLES = [
   "admin",
   "direccion",
   "recepcion",
+  "recepcion_general",
   "coordinador",
   "medico",
   "terapeuta",

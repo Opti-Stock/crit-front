@@ -125,6 +125,8 @@ function formatRoleLabel(role: UserRole): string {
   switch (role) {
     case "recepcion":
       return "Recepción";
+    case "recepcion_general":
+      return "Recepcion general";
     case "medico":
       return "Médico";
     case "terapeuta":
