@@ -92,7 +92,7 @@ function render(root: HTMLElement, state: CheckinState): void {
           ${renderScannerPanel(state)}
           ${renderFilterPanel(state)}
 
-          ${state.scanned ? renderScannedPatientCard(state) : ""}
+          ${state.scanned ? renderScannedPatientCard(state, "inline") : ""}
           ${state.isLoading ? `<p class="empty-state">Cargando citas...</p>` : renderAppointments(state)}
         </section>
       </section>
@@ -137,10 +137,7 @@ function render(root: HTMLElement, state: CheckinState): void {
   });
 
   root.querySelector<HTMLButtonElement>("[data-scan-card-close]")?.addEventListener("click", () => {
-    state.scanned = null;
-    state.message = null;
-    render(root, state);
-    void openCameraScanner(root, state);
+    closeScannedResult(root, state);
   });
 }
 
@@ -200,7 +197,10 @@ function renderFilterPanel(state: CheckinState): string {
   `;
 }
 
-function renderScannedPatientCard(state: CheckinState): string {
+function renderScannedPatientCard(
+  state: CheckinState,
+  presentation: "inline" | "overlay" = "inline",
+): string {
   const result = state.scanned;
   if (!result) return "";
   const appointment = result.appointments[0];
@@ -208,24 +208,36 @@ function renderScannedPatientCard(state: CheckinState): string {
   const cardTone = resolveScanCardTone(result);
   const title = resolveScanCardTitle(result, isTherapeutic);
   const description = resolveScanCardDescription(result, isTherapeutic);
+  const card = `
+      <article class="app-panel checkin-scan-card checkin-scan-card--${cardTone}">
+        <button class="checkin-scan-card__close" type="button" data-scan-card-close aria-label="Cerrar resultado">x</button>
+        <p class="app-eyebrow">${escapeHtml(title)}</p>
+        <h2>${escapeHtml(result.patient.fullName)}</h2>
+        <p class="hint-text">${escapeHtml(description)}</p>
+        ${
+          isTherapeutic && appointment
+            ? `
+              <div class="button-row checkin-scan-card__actions">
+                <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
+                <button type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">Inasistencia</button>
+                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Reagendar</button>
+              </div>
+            `
+            : ""
+        }
+      </article>
+  `;
+
+  if (presentation === "overlay") {
+    return `
+      <div class="checkin-result-overlay" data-scan-result-overlay role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+        ${card}
+      </div>
+    `;
+  }
+
   return `
-    <article class="app-panel checkin-scan-card checkin-scan-card--${cardTone}">
-      <button class="checkin-scan-card__close" type="button" data-scan-card-close aria-label="Cerrar resultado">x</button>
-      <p class="app-eyebrow">${escapeHtml(title)}</p>
-      <h2>${escapeHtml(result.patient.fullName)}</h2>
-      <p class="hint-text">${escapeHtml(description)}</p>
-      ${
-        isTherapeutic && appointment
-          ? `
-            <div class="button-row">
-              <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
-              <button type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">Inasistencia</button>
-              <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Reagendar</button>
-            </div>
-          `
-          : ""
-      }
-    </article>
+    ${card}
   `;
 }
 
@@ -321,14 +333,22 @@ async function scanBadge(
     state.lastScannedCode = code;
     state.scanned = await scanBadgeCheckIn({ code, date: state.date, mode: state.mode });
     state.message = null;
-    options.controls?.stop();
+
+    if (options.fromCamera) {
+      showScannedResultOverlay(root, state);
+      if (state.mode === "reception-checkin") {
+        cameraScanPausedUntil = Date.now() + 3000;
+        window.setTimeout(() => closeScannedResult(root, state, { renderPage: false }), 3000);
+      } else {
+        cameraScanPausedUntil = Number.POSITIVE_INFINITY;
+      }
+      return;
+    }
+
     await load(root, state);
     if (state.mode === "reception-checkin") {
       window.setTimeout(() => {
-        state.scanned = null;
-        state.message = null;
-        render(root, state);
-        if (options.fromCamera) void openCameraScanner(root, state);
+        closeScannedResult(root, state);
       }, 3000);
     }
   } catch (error) {
@@ -344,6 +364,38 @@ async function scanBadge(
     cameraScanPausedUntil = Date.now() + 5000;
   } finally {
     state.isSaving = false;
+  }
+}
+
+function showScannedResultOverlay(root: HTMLElement, state: CheckinState): void {
+  root.querySelector("[data-scan-result-overlay]")?.remove();
+  root.insertAdjacentHTML("beforeend", renderScannedPatientCard(state, "overlay"));
+
+  root.querySelector<HTMLButtonElement>("[data-scan-result-overlay] [data-scan-card-close]")
+    ?.addEventListener("click", () => closeScannedResult(root, state, { renderPage: false }));
+
+  root.querySelectorAll<HTMLButtonElement>("[data-scan-result-overlay] [data-therapeutic-attendance-action]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.therapeuticAttendanceAction as "present" | "absent" | "rescheduled";
+        const appointmentId = button.dataset.appointmentId;
+        void resolveTherapeuticAttendance(root, state, appointmentId, action, { fromOverlay: true });
+      });
+    });
+}
+
+function closeScannedResult(
+  root: HTMLElement,
+  state: CheckinState,
+  options: { renderPage?: boolean } = {},
+): void {
+  state.scanned = null;
+  state.message = null;
+  cameraScanPausedUntil = 0;
+  root.querySelector("[data-scan-result-overlay]")?.remove();
+  if (options.renderPage ?? true) {
+    render(root, state);
+    void openCameraScanner(root, state);
   }
 }
 
@@ -388,6 +440,7 @@ async function resolveTherapeuticAttendance(
   state: CheckinState,
   appointmentId: string | undefined,
   status: "present" | "absent" | "rescheduled",
+  options: { fromOverlay?: boolean } = {},
 ): Promise<void> {
   if (!appointmentId) return;
   const appointment = state.appointments.find((candidate) => candidate.id === appointmentId)
@@ -403,10 +456,29 @@ async function resolveTherapeuticAttendance(
     }
     state.scanned = null;
     state.message = "Asistencia actualizada.";
+    cameraScanPausedUntil = 0;
+    root.querySelector("[data-scan-result-overlay]")?.remove();
+    if (options.fromOverlay) {
+      state.appointments = state.appointments.map((candidate) =>
+        candidate.id === appointment.id
+          ? { ...candidate, attendanceStatus: status }
+          : candidate
+      );
+      return;
+    }
     await load(root, state);
     void openCameraScanner(root, state);
   } catch (error) {
     state.message = error instanceof Error ? error.message : "No se pudo actualizar la asistencia.";
+    if (options.fromOverlay) {
+      cameraScanPausedUntil = Date.now() + 5000;
+      showScanOverlay(root, {
+        title: "No se pudo actualizar",
+        message: state.message,
+        tone: "danger",
+      });
+      return;
+    }
     render(root, state);
   } finally {
     state.isSaving = false;
