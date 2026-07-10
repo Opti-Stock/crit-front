@@ -3,12 +3,14 @@ import type { PaginationMeta } from "../../types/api";
 import type {
   NotificationStatusFilter,
   NotificationSummary,
+  NotificationTypeFilter,
 } from "../../types/operational.types";
 
 export function listNotifications(query: {
   page?: number;
   pageSize?: number;
   status?: NotificationStatusFilter;
+  type?: NotificationTypeFilter;
 } = {}) {
   return mainApiClient.requestWithMeta<NotificationSummary[], PaginationMeta>(
     "/notifications",

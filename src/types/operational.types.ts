@@ -118,6 +118,8 @@ export type NotificationType =
   | "handoff_note_received"
   | "administrative_alert";
 
+export type NotificationTypeFilter = NotificationType;
+
 export interface NotificationSummary {
   id: string;
   type: NotificationType;
