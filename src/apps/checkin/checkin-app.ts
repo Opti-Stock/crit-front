@@ -20,6 +20,7 @@ interface CheckinState {
   isSaving: boolean;
   cameraStatus: string;
   message: string | null;
+  lastScannedCode: string;
 }
 
 let activeScannerControls: IScannerControls | null = null;
@@ -38,6 +39,7 @@ export function mountCheckinApp(root: HTMLElement): void {
     isSaving: false,
     cameraStatus: "Camara pendiente",
     message: null,
+    lastScannedCode: "",
   };
 
   render(root, state);
@@ -119,7 +121,6 @@ function render(root: HTMLElement, state: CheckinState): void {
     const input = root.querySelector<HTMLInputElement>("[data-badge-code]");
     const code = input?.value.trim() ?? "";
     if (!code) return;
-    if (input) input.value = "";
     void scanBadge(root, state, code);
   });
 
@@ -156,7 +157,7 @@ function renderScannerPanel(state: CheckinState): string {
       <form class="checkin-scan-form" data-badge-scan-form>
         <label class="checkin-scan-form__input">
           Codigo de gafete
-          <input data-badge-code type="search" autocomplete="off" placeholder="Escanea o escribe el codigo" autofocus />
+          <input data-badge-code type="search" autocomplete="off" placeholder="Escanea o escribe el codigo" value="${escapeHtml(state.lastScannedCode)}" autofocus />
         </label>
         <div class="checkin-scan-form__actions">
           <button type="submit" ${state.isSaving ? "disabled" : ""}>
@@ -166,6 +167,7 @@ function renderScannerPanel(state: CheckinState): string {
         </div>
       </form>
       <p class="hint-text" data-camera-status>${escapeHtml(state.cameraStatus)}</p>
+      ${state.lastScannedCode ? `<p class="hint-text">Ultimo codigo leido: <strong>${escapeHtml(state.lastScannedCode)}</strong></p>` : ""}
       <div class="checkin-camera-frame" data-checkin-camera-frame hidden>
         <video class="checkin-camera" data-checkin-camera muted playsinline></video>
         <div class="checkin-camera-guide" aria-hidden="true"></div>
@@ -316,6 +318,7 @@ async function scanBadge(
   if (state.isSaving) return;
   try {
     state.isSaving = true;
+    state.lastScannedCode = code;
     state.scanned = await scanBadgeCheckIn({ code, date: state.date, mode: state.mode });
     state.message = null;
     options.controls?.stop();
@@ -459,6 +462,8 @@ async function openCameraScanner(root: HTMLElement, state: CheckinState): Promis
         if (!result || state.isSaving || Date.now() < cameraScanPausedUntil) return;
         const code = result.getText().trim();
         if (!code) return;
+        const input = root.querySelector<HTMLInputElement>("[data-badge-code]");
+        if (input) input.value = code;
         void scanBadge(root, state, code, { fromCamera: true, controls });
       },
     );
