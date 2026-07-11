@@ -1,6 +1,7 @@
 import type { IScannerControls } from "@zxing/browser";
 import {
   checkInAppointment,
+  getCheckinAppointment,
   listCheckinAppointments,
   scanBadgeCheckIn,
   type ScanCheckinResult,
@@ -9,6 +10,8 @@ import {
 import { sessionService } from "../../features/auth/services/session.service";
 import { escapeHtml } from "../../utils/dom";
 import { createAttendance, updateAttendanceStatus } from "../../services/main-api/attendance";
+import type { AttendanceStatus, AttendanceSummary } from "../../types/operational.types";
+import { ApiClientError } from "../../services/api-client";
 
 interface CheckinState {
   date: string;
@@ -448,9 +451,7 @@ async function resolveTherapeuticAttendance(
 
   try {
     state.isSaving = true;
-    const attendance = appointment.attendance?.id
-      ? await updateAttendanceStatus(appointment.attendance.id, { status })
-      : await createAttendance({ appointmentId, status, notesRequired: status === "present" });
+    const attendance = await saveTherapeuticAttendance(appointment, status);
     state.scanned = null;
     state.message = status === "rescheduled"
       ? "Solicitud de reagendar enviada a recepcion."
@@ -491,6 +492,46 @@ async function resolveTherapeuticAttendance(
   } finally {
     state.isSaving = false;
   }
+}
+
+async function saveTherapeuticAttendance(
+  appointment: CheckinAppointmentSummary,
+  status: AttendanceStatus,
+): Promise<AttendanceSummary> {
+  if (appointment.attendance?.id) {
+    return updateAttendanceStatus(appointment.attendance.id, {
+      status,
+      notesRequired: status === "present",
+    });
+  }
+
+  try {
+    return await createAttendance({
+      appointmentId: appointment.id,
+      status,
+      notesRequired: status === "present",
+    });
+  } catch (error) {
+    if (!isAttendanceConflict(error)) {
+      throw error;
+    }
+
+    const refreshed = await getCheckinAppointment(appointment.id);
+    if (!refreshed.attendance?.id) {
+      throw error;
+    }
+
+    return updateAttendanceStatus(refreshed.attendance.id, {
+      status,
+      notesRequired: status === "present",
+    });
+  }
+}
+
+function isAttendanceConflict(error: unknown): boolean {
+  return error instanceof ApiClientError &&
+    error.status === 409 &&
+    error.payload?.code === "ATTENDANCE_CONFLICT";
 }
 
 function mergeScannedAppointments(state: CheckinState): void {
