@@ -86,9 +86,9 @@ const STATUS_CONFIG: Record<
   AttendanceVisualStatus,
   { label: string; icon: string; tone: "success" | "warning" | "muted" | "neutral" }
 > = {
-  present: { label: "Asistió", icon: "✓", tone: "success" },
+  present: { label: "Asistió", icon: "✅", tone: "success" },
   rescheduled: { label: "Por reagendar", icon: "R", tone: "warning" },
-  absent: { label: "No asistió", icon: "×", tone: "muted" },
+  absent: { label: "No asistió", icon: "❌", tone: "muted" },
   unregistered: { label: "Sin registrar", icon: "-", tone: "neutral" },
   auto_absent_due: {
     label: "No asistio - auto pendiente",
@@ -361,22 +361,22 @@ function renderRow(
             canRegister
               ? `
                 <button class="attendance-action attendance-action--present" type="button" data-attendance-action="present" aria-label="Registrar asistencia" ${state.isSaving ? "disabled" : ""}>
-                  <span class="attendance-action__icon" aria-hidden="true">✓</span>
+                  <span class="attendance-action__icon" aria-hidden="true">✅</span>
                   <span class="attendance-action__label">Marcar asistencia</span>
                 </button>
                 <button class="attendance-action attendance-action--reschedule" type="button" data-attendance-action="rescheduled" aria-label="Reagendar cita" ${state.isSaving ? "disabled" : ""}>
-                  <span class="attendance-action__icon" aria-hidden="true">▦</span>
+                  <span class="attendance-action__icon" aria-hidden="true">🗓️</span>
                   <span class="attendance-action__label">Reagendar</span>
                 </button>
                 <button class="attendance-action attendance-action--absent" type="button" data-attendance-action="absent" aria-label="Registrar inasistencia" ${state.isSaving ? "disabled" : ""}>
-                  <span class="attendance-action__icon" aria-hidden="true">×</span>
+                  <span class="attendance-action__icon" aria-hidden="true">❌</span>
                   <span class="attendance-action__label">No asistió</span>
                 </button>
               `
               : ""
           }
           <button class="attendance-action attendance-action--note" type="button" data-medical-note-action aria-label="${escapeHtml(noteLabel)}" ${canAddNote ? "" : "disabled"}>
-            <span class="attendance-action__icon" aria-hidden="true">▣</span>
+            <span class="attendance-action__icon" aria-hidden="true">📝</span>
             <span class="attendance-action__label">${row.medicalNote ? "Nota guardada" : "Nota médica"}</span>
           </button>
         </div>
