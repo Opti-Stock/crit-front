@@ -220,17 +220,17 @@ function renderScannedPatientCard(
           isTherapeutic && appointment
             ? `
               <div class="button-row checkin-scan-card__actions">
-                <button class="checkin-scan-action checkin-scan-action--present" type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">
-                  <span class="checkin-scan-action__icon" aria-hidden="true">✓</span>
-                  <span>Marcar asistencia</span>
+                <button class="attendance-action attendance-action--present checkin-scan-action checkin-scan-action--present" type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">
+                  <span class="attendance-action__icon checkin-scan-action__icon" aria-hidden="true">✓</span>
+                  <span class="attendance-action__label">Marcar asistencia</span>
                 </button>
-                <button class="checkin-scan-action checkin-scan-action--reschedule" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">
-                  <span class="checkin-scan-action__icon" aria-hidden="true">▦</span>
-                  <span>Reagendar</span>
+                <button class="attendance-action attendance-action--reschedule checkin-scan-action checkin-scan-action--reschedule" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">
+                  <span class="attendance-action__icon checkin-scan-action__icon" aria-hidden="true">▦</span>
+                  <span class="attendance-action__label">Reagendar</span>
                 </button>
-                <button class="checkin-scan-action checkin-scan-action--absent" type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">
-                  <span class="checkin-scan-action__icon" aria-hidden="true">×</span>
-                  <span>No asistió</span>
+                <button class="attendance-action attendance-action--absent checkin-scan-action checkin-scan-action--absent" type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">
+                  <span class="attendance-action__icon checkin-scan-action__icon" aria-hidden="true">×</span>
+                  <span class="attendance-action__label">No asistió</span>
                 </button>
               </div>
             `

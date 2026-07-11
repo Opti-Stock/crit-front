@@ -3331,3 +3331,119 @@ button:disabled {
     max-height: calc(100dvh - 24px);
   }
 }
+
+/* Check-in therapeutic actions must stay below the global button rules. */
+.checkin-result-overlay .checkin-scan-card--therapeutic .checkin-scan-card__actions {
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) repeat(2, minmax(190px, 1fr));
+  gap: 18px;
+  padding-top: 24px;
+  border-top: 1px solid #dce5ee;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action.checkin-scan-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 70px;
+  padding: 0 28px;
+  border-radius: 16px;
+  border-width: 2px;
+  border-style: solid;
+  cursor: pointer;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: none;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action.checkin-scan-action:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.97);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action.checkin-scan-action:active {
+  transform: scale(0.98);
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action__icon.checkin-scan-action__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--present.checkin-scan-action {
+  min-height: 76px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #168a45 0%, #08743a 100%);
+  border-color: #08743a;
+  box-shadow: 0 8px 18px rgba(8, 116, 58, 0.22);
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--present .attendance-action__icon {
+  color: #08743a;
+  background: rgba(255, 255, 255, 0.96);
+  font-size: 1.75rem;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--reschedule.checkin-scan-action {
+  color: #a15c00;
+  background: #fffdf7;
+  border-color: #e7a600;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--reschedule .attendance-action__icon {
+  color: #a15c00;
+  background: #fff4c4;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--absent.checkin-scan-action {
+  color: #c5221f;
+  background: #fffafa;
+  border-color: #d92d20;
+}
+
+.checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--absent .attendance-action__icon {
+  color: #c5221f;
+  background: #ffe5e1;
+}
+
+@media (max-width: 1200px) {
+  .checkin-result-overlay .checkin-scan-card--therapeutic .checkin-scan-card__actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--present.checkin-scan-action {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .checkin-result-overlay .checkin-scan-card--therapeutic .checkin-scan-card__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action--present.checkin-scan-action {
+    grid-column: auto;
+  }
+
+  .checkin-result-overlay .checkin-scan-card--therapeutic .attendance-action.checkin-scan-action {
+    min-height: 62px;
+  }
+}
