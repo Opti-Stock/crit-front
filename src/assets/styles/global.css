@@ -516,15 +516,79 @@ select {
   box-shadow: 0 24px 70px rgba(23, 32, 42, 0.24);
 }
 
-.checkin-scan-card__actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 10px;
+.checkin-result-overlay .checkin-scan-card--therapeutic {
+  width: min(860px, calc(100vw - 32px));
+  padding: 32px 64px 32px 32px;
 }
 
-.checkin-scan-card__actions button {
+.checkin-scan-card__actions {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.7fr) repeat(2, minmax(170px, 0.8fr));
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.checkin-scan-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   min-width: 0;
+  min-height: 72px;
+  padding: 18px 24px;
+  border-radius: 8px;
+  border: 2px solid currentColor;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(23, 32, 42, 0.08);
+  font-size: clamp(1rem, 1.6vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.checkin-scan-action__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  border: 3px solid currentColor;
+  border-radius: 999px;
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.checkin-scan-action--present {
+  border-color: #07863d;
+  color: #ffffff;
+  background: linear-gradient(180deg, #0c9847 0%, #087a37 100%);
+  box-shadow: 0 14px 28px rgba(8, 122, 55, 0.26);
+}
+
+.checkin-scan-action--present:hover {
+  background: linear-gradient(180deg, #0aa34c 0%, #087236 100%);
+}
+
+.checkin-scan-action--reschedule {
+  border-color: #f2a000;
+  color: #e99a00;
+}
+
+.checkin-scan-action--reschedule:hover {
+  color: #b97800;
+  background: #fff8e7;
+}
+
+.checkin-scan-action--absent {
+  border-color: #e42323;
+  color: #dc1616;
+}
+
+.checkin-scan-action--absent:hover {
+  color: #b31212;
+  background: #fff1f1;
 }
 
 @media (max-width: 640px) {
@@ -533,8 +597,28 @@ select {
     padding: 14px;
   }
 
+  .checkin-result-overlay .checkin-scan-card--therapeutic {
+    width: min(100%, calc(100vw - 28px));
+    padding: 24px 56px 24px 20px;
+  }
+
   .checkin-scan-card__actions {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .checkin-scan-action {
+    justify-content: flex-start;
+    min-height: 58px;
+    padding: 14px 16px;
+    font-size: 1rem;
+  }
+
+  .checkin-scan-action__icon {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
   }
 }
 
