@@ -209,8 +209,9 @@ function renderScannedPatientCard(
   const cardTone = resolveScanCardTone(result);
   const title = resolveScanCardTitle(result, isTherapeutic);
   const description = resolveScanCardDescription(result, isTherapeutic);
+  const therapeuticClass = isTherapeutic && appointment ? " checkin-scan-card--therapeutic" : "";
   const card = `
-      <article class="app-panel checkin-scan-card checkin-scan-card--${cardTone}">
+      <article class="app-panel checkin-scan-card checkin-scan-card--${cardTone}${therapeuticClass}">
         <button class="checkin-scan-card__close" type="button" data-scan-card-close aria-label="Cerrar resultado">x</button>
         <p class="app-eyebrow">${escapeHtml(title)}</p>
         <h2>${escapeHtml(result.patient.fullName)}</h2>
@@ -219,9 +220,18 @@ function renderScannedPatientCard(
           isTherapeutic && appointment
             ? `
               <div class="button-row checkin-scan-card__actions">
-                <button type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">Asistencia</button>
-                <button type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">Inasistencia</button>
-                <button class="secondary-action" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">Solicitar reagendar</button>
+                <button class="checkin-scan-action checkin-scan-action--present" type="button" data-therapeutic-attendance-action="present" data-appointment-id="${escapeHtml(appointment.id)}">
+                  <span class="checkin-scan-action__icon" aria-hidden="true">✓</span>
+                  <span>Marcar asistencia</span>
+                </button>
+                <button class="checkin-scan-action checkin-scan-action--reschedule" type="button" data-therapeutic-attendance-action="rescheduled" data-appointment-id="${escapeHtml(appointment.id)}">
+                  <span class="checkin-scan-action__icon" aria-hidden="true">▦</span>
+                  <span>Reagendar</span>
+                </button>
+                <button class="checkin-scan-action checkin-scan-action--absent" type="button" data-therapeutic-attendance-action="absent" data-appointment-id="${escapeHtml(appointment.id)}">
+                  <span class="checkin-scan-action__icon" aria-hidden="true">×</span>
+                  <span>No asistió</span>
+                </button>
               </div>
             `
             : ""
