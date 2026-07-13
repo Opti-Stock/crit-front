@@ -1,6 +1,12 @@
 import { superAdminService } from "../../features/super-admin/services/super-admin.service";
 import { superAdminSessionService } from "../../features/super-admin/services/super-admin-session.service";
 import { sessionService } from "../../features/auth/services/session.service";
+import {
+  bindSidebarCollapse,
+  getSidebarCollapsedShellClass,
+  renderSidebarBrand,
+  renderSidebarNavItem,
+} from "../../components/app-sidebar";
 import type { TenantSummary } from "../../features/super-admin/types/super-admin.types";
 
 interface SuperAdminState {
@@ -78,11 +84,15 @@ function renderLogin(root: HTMLElement, errorMessage: string | null = null): voi
 function renderShell(root: HTMLElement): void {
   const session = superAdminSessionService.getSession()!;
   root.innerHTML = `
-    <main class="app-shell app-shell--platform" aria-labelledby="platform-title">
+    <main class="app-shell app-shell--platform${getSidebarCollapsedShellClass()}" aria-labelledby="platform-title" data-app-shell>
       <aside class="app-sidebar">
-        <p class="app-brand">CRIT Platform</p>
+        ${renderSidebarBrand("CRIT Platform")}
         <nav class="app-nav">
-          <span class="app-nav__item app-nav__item--active">CRITs</span>
+          ${renderSidebarNavItem({
+            active: true,
+            icon: "clinics",
+            label: "CRITs",
+          })}
         </nav>
       </aside>
       <section class="app-content">
@@ -121,6 +131,8 @@ function renderShell(root: HTMLElement): void {
       </section>
     </main>
   `;
+
+  bindSidebarCollapse(root);
 
   root.querySelector<HTMLButtonElement>("[data-platform-logout]")?.addEventListener("click", () => {
     superAdminSessionService.clearSession();

@@ -26,11 +26,17 @@ select {
 }
 
 .app-shell {
+  --app-sidebar-width: 272px;
   display: grid;
-  grid-template-columns: minmax(220px, 260px) 1fr;
+  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
   min-width: 0;
   min-height: 100vh;
   background: #f4f6f8;
+  transition: grid-template-columns 180ms ease;
+}
+
+.app-shell--sidebar-collapsed {
+  --app-sidebar-width: 84px;
 }
 
 .app-shell--calendar {
@@ -40,57 +46,275 @@ select {
 }
 
 .app-shell--checkin {
+  --app-sidebar-width: 100%;
   grid-template-columns: 1fr;
 }
 
 .app-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 24px 18px;
-  color: #f8fafc;
-  background: #22313f;
+  gap: 18px;
+  width: var(--app-sidebar-width);
+  min-width: 0;
+  max-width: var(--app-sidebar-width);
+  min-height: 100vh;
   max-height: 100vh;
+  padding: 20px 14px;
+  overflow: hidden;
+  color: #f8fafc;
+  background:
+    linear-gradient(180deg, rgba(116, 97, 255, 0.18) 0%, rgba(16, 40, 72, 0) 42%),
+    #102848;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 8px 0 24px rgba(16, 40, 72, 0.14);
+  transition:
+    width 180ms ease,
+    max-width 180ms ease,
+    padding 180ms ease;
 }
 
 .app-shell--admin .app-sidebar {
-  background: #27313b;
+  background:
+    linear-gradient(180deg, rgba(142, 208, 255, 0.14) 0%, rgba(24, 40, 59, 0) 44%),
+    #18283b;
 }
 
 .app-shell--platform .app-sidebar {
-  background: #1f3430;
+  background:
+    linear-gradient(180deg, rgba(28, 167, 150, 0.16) 0%, rgba(18, 48, 57, 0) 42%),
+    #123039;
 }
 
 .app-shell--ap .app-sidebar {
-  background: #263445;
+  background:
+    linear-gradient(180deg, rgba(116, 97, 255, 0.16) 0%, rgba(21, 42, 70, 0) 42%),
+    #152a46;
+}
+
+.app-shell--sidebar-collapsed .app-sidebar {
+  align-items: center;
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.app-sidebar__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-sidebar__header--admin {
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__header {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 100%;
+  gap: 10px;
 }
 
 .app-brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
   margin: 0;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.app-brand__mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  color: #b8a7ff;
+  background:
+    radial-gradient(circle at 68% 26%, rgba(247, 198, 84, 0.9) 0 7%, transparent 8%),
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.app-brand__mark .sidebar-icon-svg {
+  width: 30px;
+  height: 30px;
+}
+
+.app-brand__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell--sidebar-collapsed .app-brand {
+  justify-content: center;
+}
+
+.app-shell--sidebar-collapsed .app-brand__text,
+.app-shell--sidebar-collapsed .admin-sidebar-title {
+  display: none;
+}
+
+.app-sidebar__collapse-button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.app-sidebar__collapse-button:hover {
+  border-color: rgba(255, 255, 255, 0.34);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+}
+
+.app-sidebar__collapse-button:active {
+  transform: scale(0.96);
+}
+
+.app-sidebar__collapse-button:focus-visible {
+  outline: 3px solid rgba(142, 208, 255, 0.46);
+  outline-offset: 2px;
+}
+
+.app-sidebar__collapse-icon {
+  width: 24px;
+  height: 24px;
+  transition: transform 180ms ease;
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__collapse-icon {
+  transform: rotate(180deg);
 }
 
 .app-nav {
   display: grid;
   gap: 8px;
+  align-content: start;
+  min-width: 0;
 }
 
 .app-nav__item {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 40px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  color: #dce4ec;
+  gap: 12px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  color: #e9f2fb;
   text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+a.app-nav__item:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.11);
+  transform: translateX(1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.app-nav__item:focus-visible {
+  outline: 3px solid rgba(142, 208, 255, 0.46);
+  outline-offset: 2px;
+}
+
+.app-nav__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.app-nav__icon .sidebar-icon-svg,
+.app-logout-button__icon .sidebar-icon-svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.app-nav__icon--calendar,
+.app-nav__icon--appointmentTypes {
+  color: #c8bcff;
+}
+
+.app-nav__icon--attendance,
+.app-nav__icon--badgeScan {
+  color: #27c3b1;
+}
+
+.app-nav__icon--linkNotes,
+.app-nav__icon--medicalNotes {
+  color: #b8a7ff;
+}
+
+.app-nav__icon--notifications {
+  color: #f7c654;
+}
+
+.app-nav__icon--admin,
+.app-nav__icon--roles {
+  color: #8ed0ff;
+}
+
+.app-nav__icon--clinics,
+.app-nav__icon--dashboard,
+.app-nav__icon--rooms,
+.app-nav__icon--users {
+  color: #dbeafe;
+}
+
+.app-nav__label {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-nav__badge {
   display: inline-grid;
   place-items: center;
+  justify-self: end;
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
@@ -108,8 +332,76 @@ select {
 }
 
 .app-nav__item--active {
-  color: #17202a;
+  border-color: rgba(255, 255, 255, 0.48);
+  color: #102848;
   background: #ffffff;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.16);
+}
+
+.app-nav__item--active::before {
+  position: absolute;
+  top: 14px;
+  left: -7px;
+  width: 4px;
+  height: 24px;
+  border-radius: 999px;
+  background: #8e7cf7;
+  content: "";
+}
+
+.app-nav__item--active .app-nav__icon {
+  border-color: rgba(16, 40, 72, 0.08);
+  background: #f4f6ff;
+}
+
+.app-shell--sidebar-collapsed .app-nav {
+  width: 100%;
+  justify-items: center;
+}
+
+.app-shell--sidebar-collapsed .app-nav__item {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 54px;
+  min-height: 54px;
+  padding: 0;
+  border-radius: 18px;
+}
+
+.app-shell--sidebar-collapsed a.app-nav__item:hover {
+  transform: translateY(-1px);
+}
+
+.app-shell--sidebar-collapsed .app-nav__icon {
+  width: 38px;
+  height: 38px;
+}
+
+.app-shell--sidebar-collapsed .app-nav__label,
+.app-shell--sidebar-collapsed .app-session-actions__eyebrow,
+.app-shell--sidebar-collapsed .app-session-actions__label,
+.app-shell--sidebar-collapsed .app-logout-button__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app-shell--sidebar-collapsed .app-nav__badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.66rem;
+}
+
+.app-shell--sidebar-collapsed .app-nav__item--active::before {
+  top: 15px;
+  left: -9px;
 }
 
 .app-shell--admin .admin-sidebar-brand {
@@ -122,17 +414,17 @@ select {
 .app-shell--admin .admin-back-circle-button {
   display: inline-grid;
   place-items: center;
-  flex: 0 0 44px;
+  flex: 0 0 42px;
   flex-shrink: 0;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
   padding: 0;
-  border: 6px solid #2b75b8;
-  border-radius: 999px;
-  color: #2b75b8;
-  background-color: #8ed0ff;
+  border: 1px solid rgba(142, 208, 255, 0.34);
+  border-radius: 14px;
+  color: #8ed0ff;
+  background-color: rgba(142, 208, 255, 0.12);
   cursor: pointer;
   line-height: 1;
   transition:
@@ -142,13 +434,15 @@ select {
 }
 
 .app-shell--admin .admin-back-circle-button svg {
-  width: 26px;
-  height: 26px;
-  stroke-width: 3.5;
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.6;
 }
 
 .app-shell--admin .admin-back-circle-button:hover {
-  filter: brightness(0.95);
+  color: #ffffff;
+  background-color: rgba(142, 208, 255, 0.2);
+  filter: none;
   transform: translateX(-1px);
   box-shadow: 0 6px 14px rgba(43, 117, 184, 0.26);
 }
@@ -175,6 +469,7 @@ select {
 .app-session-actions {
   display: grid;
   gap: 8px;
+  min-width: 0;
   margin-top: auto;
 }
 
@@ -196,16 +491,53 @@ select {
 }
 
 .app-logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
-  border-color: rgba(255, 255, 255, 0.58);
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 14px;
   color: #ffffff;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .app-logout-button:hover {
-  border-color: #ffffff;
-  color: #17202a;
-  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.app-logout-button:active {
+  transform: scale(0.98);
+}
+
+.app-logout-button:focus-visible {
+  outline: 3px solid rgba(142, 208, 255, 0.46);
+  outline-offset: 2px;
+}
+
+.app-shell--sidebar-collapsed .app-session-actions {
+  width: 100%;
+  justify-items: center;
+}
+
+.app-shell--sidebar-collapsed .app-logout-button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 16px;
 }
 
 .app-content {
@@ -1445,16 +1777,46 @@ button:disabled,
 
 @media (max-width: 768px) {
   .app-shell {
+    --app-sidebar-width: 100%;
     grid-template-columns: 1fr;
+  }
+
+  .app-shell--sidebar-collapsed {
+    --app-sidebar-width: 100%;
   }
 
   .app-sidebar {
     gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    max-height: none;
     padding: 18px;
+    overflow: visible;
+  }
+
+  .app-sidebar__header,
+  .app-shell--sidebar-collapsed .app-sidebar__header {
+    grid-template-columns: minmax(0, 1fr) 42px;
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .app-shell--sidebar-collapsed .app-brand {
+    justify-content: flex-start;
   }
 
   .app-nav {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    width: 100%;
+  }
+
+  .app-shell--sidebar-collapsed .app-nav {
+    grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  }
+
+  .app-shell--sidebar-collapsed .app-nav__item {
+    justify-self: center;
   }
 
   .app-content {
@@ -1656,7 +2018,6 @@ button:disabled,
 }
 
 .app-nav__item--admin-entry {
-  display: block;
   text-decoration: none;
 }
 
