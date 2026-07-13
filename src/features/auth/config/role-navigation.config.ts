@@ -12,7 +12,8 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
     key: "dashboard",
     label: "Dashboard",
     allowedRoles: [
-      "admin"
+      "admin",
+      "direccion",
     ],
     app: "main",
   },
