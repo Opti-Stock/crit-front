@@ -73,6 +73,19 @@ const DEFAULT_POST_SESSION_MINUTES = 40;
 const PATIENT_SEARCH_DEBOUNCE_MS = 300;
 const PATIENT_SEARCH_PAGE_SIZE = 10;
 
+type CalendarMonthTone = "success" | "info" | "warning" | "danger" | "muted";
+
+const MONTH_STATUS_LABELS: Record<
+  CalendarMonthTone,
+  { label: string }
+> = {
+  success: { label: "Asistencia o check-in" },
+  info: { label: "Programada" },
+  warning: { label: "Reagendada" },
+  danger: { label: "No asistencia o incidencia" },
+  muted: { label: "Cancelada o cerrada" },
+};
+
 type PatientComboboxKind = "filter" | "form";
 type PatientSearchStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -101,6 +114,7 @@ interface CalendarState {
   filters: CalendarFilters;
   patientComboboxes: Record<PatientComboboxKind, PatientComboboxState>;
   selectedAppointmentId: string | null;
+  selectedMonthDateKey: string | null;
   showCreateForm: boolean;
   isFiltersCollapsed: boolean;
   showMoreFilters: boolean;
@@ -147,6 +161,7 @@ export function mountCalendarPage(root: HTMLElement, role: UserRole): void {
       form: createPatientComboboxState(),
     },
     selectedAppointmentId: null,
+    selectedMonthDateKey: null,
     showCreateForm: false,
     isFiltersCollapsed: isMobile,
     showMoreFilters: false,
@@ -211,6 +226,13 @@ function render(root: HTMLElement, state: CalendarState): void {
     calendarAppointments.find(
       (item) => item.appointment.id === state.selectedAppointmentId,
     ) ?? null;
+  const selectedMonthDate = state.view === "month" && state.selectedMonthDateKey
+    ? parseDateKey(state.selectedMonthDateKey)
+    : null;
+  const selectedMonthAppointments =
+    state.view === "month" && state.selectedMonthDateKey
+      ? calendarAppointments.filter((item) => item.dateKey === state.selectedMonthDateKey)
+      : [];
 
   root.innerHTML = `
     <section class="feature-page">
@@ -232,6 +254,14 @@ function render(root: HTMLElement, state: CalendarState): void {
           ${state.isLoading ? `<p class="empty-state">Cargando agenda...</p>` : renderCalendarSurface(state, calendarAppointments)}
         </div>
       </div>
+      ${
+        selectedMonthDate
+          ? renderMonthDayDetailPanel(
+              selectedMonthDate,
+              selectedMonthAppointments,
+            )
+          : ""
+      }
       ${selectedAppointment ? renderDetailPanel(selectedAppointment, state.role) : ""}
     </section>
   `;
@@ -601,18 +631,19 @@ function renderMonthView(
           const key = toDateKey(day);
           const dayAppointments = appointments.filter((item) => item.dateKey === key);
           const classes = [
-            "calendar-month__day",
-            key === todayKey ? "calendar-month__day--today" : "",
-            day.getMonth() !== state.anchorDate.getMonth() ? "calendar-month__day--muted" : "",
+            "calendar-month-day",
+            key === todayKey ? "calendar-month-day--today" : "",
+            key === state.selectedMonthDateKey ? "calendar-month-day--selected" : "",
+            `calendar-month-day--${getMonthLoadLevel(dayAppointments.length)}`,
+            day.getMonth() !== state.anchorDate.getMonth() ? "calendar-month-day--muted" : "",
           ]
             .filter(Boolean)
             .join(" ");
           return `
-            <div class="${classes}">
-              <button class="calendar-month__date" type="button" data-mini-date="${key}">${day.getDate()}</button>
-              ${dayAppointments.slice(0, 4).map(renderMonthChip).join("")}
-              ${dayAppointments.length > 4 ? `<span class="calendar-month__more">+${dayAppointments.length - 4} mas</span>` : ""}
-            </div>
+            <button class="${classes}" type="button" data-calendar-month-date="${key}" aria-label="${escapeHtml(buildMonthDayAriaLabel(day, dayAppointments))}">
+              <span class="calendar-month-day__date">${day.getDate()}</span>
+              ${renderMonthDaySummary(dayAppointments)}
+            </button>
           `;
         })
         .join("")}
@@ -620,11 +651,163 @@ function renderMonthView(
   `;
 }
 
-function renderMonthChip(item: CalendarAppointment): string {
-  const config = getCalendarStatusConfig(item.visualState);
+function renderMonthDaySummary(appointments: readonly CalendarAppointment[]): string {
+  if (appointments.length === 0) {
+    return "";
+  }
+
+  const visibleDots = appointments.slice(0, 3);
+  const hiddenCount = Math.max(0, appointments.length - visibleDots.length);
+  const countLabel = formatAppointmentCount(appointments.length);
+
   return `
-    <button class="calendar-month__chip calendar-month__chip--${config.tone}" type="button" data-appointment-id="${escapeHtml(item.appointment.id)}">
-      ${escapeHtml(formatTime(item.appointment.startsAt))} ${escapeHtml(item.appointment.patient.fullName)}
+    <span class="calendar-month-day-summary">
+      <span class="calendar-month-day-summary__count">${escapeHtml(countLabel)}</span>
+      <span class="calendar-month-day-summary__dots">
+        ${visibleDots.map(renderMonthStatusDot).join("")}
+      </span>
+      ${hiddenCount > 0 ? `<span class="calendar-month-more">+${hiddenCount} más</span>` : ""}
+    </span>
+  `;
+}
+
+function renderMonthStatusDot(item: CalendarAppointment): string {
+  const tone = getMonthTone(item);
+  const label = MONTH_STATUS_LABELS[tone].label;
+
+  return `<span class="calendar-month-status-dot calendar-month-status-dot--${tone}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"></span>`;
+}
+
+function countMonthTones(
+  appointments: readonly CalendarAppointment[],
+): { tone: CalendarMonthTone; count: number }[] {
+  const order: readonly CalendarMonthTone[] = [
+    "success",
+    "info",
+    "warning",
+    "danger",
+    "muted",
+  ];
+  const counts = new Map<CalendarMonthTone, number>();
+
+  appointments.forEach((appointment) => {
+    const tone = getMonthTone(appointment);
+    counts.set(tone, (counts.get(tone) ?? 0) + 1);
+  });
+
+  return order
+    .map((tone) => ({ tone, count: counts.get(tone) ?? 0 }))
+    .filter(({ count }) => count > 0);
+}
+
+function getMonthTone(item: CalendarAppointment): CalendarMonthTone {
+  if (item.visualState === "present") {
+    return "success";
+  }
+
+  if (item.visualState === "rescheduled") {
+    return "warning";
+  }
+
+  if (item.visualState === "absent") {
+    return "danger";
+  }
+
+  if (item.visualState === "cancelled") {
+    return "muted";
+  }
+
+  if (item.appointment.isCheckedIn) {
+    return "success";
+  }
+
+  if (item.visualState === "scheduled") {
+    return "info";
+  }
+
+  return "muted";
+}
+
+function formatAppointmentCount(count: number): string {
+  return `${count} cita${count === 1 ? "" : "s"}`;
+}
+
+function getMonthLoadLevel(count: number): "empty" | "light" | "medium" | "high" {
+  if (count === 0) return "empty";
+  if (count <= 2) return "light";
+  if (count <= 5) return "medium";
+  return "high";
+}
+
+function buildMonthDayAriaLabel(
+  day: Date,
+  appointments: readonly CalendarAppointment[],
+): string {
+  const dateLabel = new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(day);
+
+  if (appointments.length === 0) {
+    return `${dateLabel}, sin citas`;
+  }
+
+  const stateSummary = countMonthTones(appointments)
+    .map(({ tone, count }) => `${count} ${MONTH_STATUS_LABELS[tone].label}`)
+    .join(", ");
+
+  return `${dateLabel}, ${formatAppointmentCount(appointments.length)}${stateSummary ? `, ${stateSummary}` : ""}`;
+}
+
+function formatMonthDetailDate(date: Date): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function renderMonthDayDetailPanel(
+  date: Date,
+  appointments: readonly CalendarAppointment[],
+): string {
+  const countLabel = formatAppointmentCount(appointments.length);
+
+  return `
+    <aside class="calendar-month-detail-panel" role="dialog" aria-label="Detalle del dia seleccionado">
+      <div class="calendar-month-detail-panel__header">
+        <div>
+          <p class="app-eyebrow">Detalle del dia</p>
+          <h3>${escapeHtml(formatMonthDetailDate(date))}</h3>
+          <p>${escapeHtml(countLabel)}</p>
+        </div>
+        <button class="icon-button icon-button--danger" type="button" data-calendar-action="close-month-day-detail" aria-label="Cerrar detalle del dia">x</button>
+      </div>
+      ${
+        appointments.length
+          ? `<div class="calendar-month-detail-panel__list">${appointments.map(renderMonthDayDetailItem).join("")}</div>`
+          : `<p class="calendar-agenda__empty">Sin citas para este dia.</p>`
+      }
+    </aside>
+  `;
+}
+
+function renderMonthDayDetailItem(item: CalendarAppointment): string {
+  const appointment = item.appointment;
+  const status = getCalendarStatusConfig(item.visualState);
+  const tone = getMonthTone(item);
+
+  return `
+    <button class="calendar-month-detail-item calendar-month-detail-item--${tone}" type="button" data-appointment-id="${escapeHtml(appointment.id)}">
+      <span class="calendar-month-detail-item__time">${escapeHtml(formatTime(appointment.startsAt))} - ${escapeHtml(formatTime(appointment.endsAt))}</span>
+      <strong class="calendar-month-detail-item__patient">${escapeHtml(appointment.patient.fullName)}</strong>
+      <span class="calendar-month-detail-item__therapy">${escapeHtml(appointment.appointmentType.name)}</span>
+      <span class="calendar-month-detail-item__meta">${escapeHtml(appointment.collaborator.fullName)} · ${escapeHtml(appointment.room.name)}</span>
+      <span class="calendar-month-detail-item__status calendar-status calendar-status--${status.tone}">
+        <span aria-hidden="true"></span>${escapeHtml(status.label)}
+      </span>
     </button>
   `;
 }
@@ -904,6 +1087,7 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
     button.addEventListener("click", () => {
       const view = button.dataset.calendarView as CalendarViewMode;
       state.view = view;
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
@@ -926,12 +1110,21 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
 
   bindPatientComboboxes(root, state);
 
+  root.querySelectorAll<HTMLButtonElement>("[data-calendar-month-date]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedMonthDateKey = button.dataset.calendarMonthDate ?? null;
+      state.selectedAppointmentId = null;
+      render(root, state);
+    });
+  });
+
   root.querySelectorAll<HTMLButtonElement>("[data-mini-date]").forEach((button) => {
     button.addEventListener("click", () => {
       const date = parseDateKey(button.dataset.miniDate);
       if (!date) return;
       state.anchorDate = date;
       state.view = state.view === "month" ? "day" : state.view;
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
@@ -958,6 +1151,7 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
   root.querySelectorAll<HTMLButtonElement>("[data-appointment-id]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedAppointmentId = button.dataset.appointmentId ?? null;
+      state.selectedMonthDateKey = null;
       render(root, state);
     });
   });
@@ -1367,30 +1561,35 @@ function handleCalendarAction(
   switch (action) {
     case "today":
       state.anchorDate = new Date();
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
       return;
     case "previous":
       state.anchorDate = moveAnchorDate(state.anchorDate, state.view, -1);
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
       return;
     case "next":
       state.anchorDate = moveAnchorDate(state.anchorDate, state.view, 1);
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
       return;
     case "mini-previous":
       state.anchorDate = addDays(state.anchorDate, -30);
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
       return;
     case "mini-next":
       state.anchorDate = addDays(state.anchorDate, 30);
+      state.selectedMonthDateKey = null;
       state.isLoading = true;
       render(root, state);
       void load(root, state);
@@ -1429,6 +1628,10 @@ function handleCalendarAction(
       return;
     case "close-detail":
       state.selectedAppointmentId = null;
+      render(root, state);
+      return;
+    case "close-month-day-detail":
+      state.selectedMonthDateKey = null;
       render(root, state);
       return;
     case "manual-checkin":

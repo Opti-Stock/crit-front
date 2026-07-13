@@ -47,6 +47,8 @@ type AttendanceVisualStatus =
   | "unregistered"
   | "auto_absent_due";
 
+type AttendanceIconName = "calendar" | "check" | "minus" | "note" | "x";
+
 interface AttendanceViewModel {
   appointment: AppointmentSummary;
   attendance: AttendanceSummary | null;
@@ -81,18 +83,76 @@ const DATE_QUERY_ROLES: readonly UserRole[] = ["coordinador", "direccion", "admi
 const READ_ONLY_ROLES: readonly UserRole[] = ["coordinador", "direccion", "admin"];
 const AUTO_ABSENT_TOLERANCE_MINUTES = 15;
 
+const attendanceIcons: Record<AttendanceIconName, string> = {
+  check: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="attendance-icon-svg" focusable="false">
+      <path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `,
+  x: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="attendance-icon-svg" focusable="false">
+      <path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `,
+  calendar: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="attendance-icon-svg" focusable="false">
+      <rect x="4" y="5" width="16" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.4" />
+      <path d="M8 3v4M16 3v4M4 10h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+      <path d="M8 13h2M12 13h2M16 13h1M8 16h2M12 16h2M16 16h1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+    </svg>
+  `,
+  note: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="attendance-icon-svg" focusable="false">
+      <path d="M6 4h9l3 3v13H6V4z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round" />
+      <path d="M15 4v4h4M9 12h5M9 16h3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M14.5 17.5l4.8-4.8a1.2 1.2 0 0 1 1.7 1.7l-4.8 4.8-2 .5.3-2.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+    </svg>
+  `,
+  minus: `
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="attendance-icon-svg" focusable="false">
+      <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" />
+    </svg>
+  `,
+};
+
 const STATUS_CONFIG: Record<
   AttendanceVisualStatus,
-  { label: string; icon: string; tone: "success" | "warning" | "muted" | "neutral" }
+  {
+    label: string;
+    icon: AttendanceIconName;
+    tone: "danger" | "success" | "warning" | "muted" | "neutral";
+    badgeModifier: string;
+  }
 > = {
-  present: { label: "Asistio", icon: "OK", tone: "success" },
-  rescheduled: { label: "Reagendada", icon: "R", tone: "warning" },
-  absent: { label: "No asistio", icon: "NO", tone: "muted" },
-  unregistered: { label: "Sin registrar", icon: "-", tone: "neutral" },
+  present: {
+    label: "Asistencia",
+    icon: "check",
+    tone: "success",
+    badgeModifier: "present",
+  },
+  rescheduled: {
+    label: "Reagendada",
+    icon: "calendar",
+    tone: "warning",
+    badgeModifier: "rescheduled",
+  },
+  absent: {
+    label: "No asistencia",
+    icon: "x",
+    tone: "danger",
+    badgeModifier: "absent",
+  },
+  unregistered: {
+    label: "Sin registrar",
+    icon: "minus",
+    tone: "neutral",
+    badgeModifier: "unregistered",
+  },
   auto_absent_due: {
-    label: "No asistio - auto pendiente",
-    icon: "AUTO",
-    tone: "muted",
+    label: "No asistencia - auto pendiente",
+    icon: "x",
+    tone: "danger",
+    badgeModifier: "auto-absent-due",
   },
 };
 
@@ -322,7 +382,7 @@ function renderRow(
   const appointment = row.appointment;
   const canRegister = canRegisterClinicalAttendance(row, state, role);
   const canAddNote = canWriteMedicalNote(row, role);
-  const noteLabel = row.medicalNote ? "Nota guardada" : "Agregar nota médica";
+  const noteAriaLabel = row.medicalNote ? "Nota guardada" : "Agregar nota médica";
 
   return `
     <article class="attendance-card attendance-card--${config.tone}" data-appointment-id="${escapeHtml(appointment.id)}">
@@ -334,9 +394,11 @@ function renderRow(
             <h3 class="attendance-card__patient">${escapeHtml(appointment.patient.fullName)}</h3>
             ${renderCoordinatorScopeBadge(row, state, role)}
           </div>
-          <span class="attendance-status-badge attendance-status-badge--${config.tone}">
-            <span aria-hidden="true">${escapeHtml(config.icon)}</span>
-            ${escapeHtml(config.label)}
+          <span class="attendance-status-badge attendance-status-badge--${config.badgeModifier}">
+            <span class="attendance-status-badge__icon">
+              ${renderAttendanceIcon(config.icon)}
+            </span>
+            <span class="attendance-status-badge__label">${escapeHtml(config.label)}</span>
           </span>
         </div>
         <dl class="attendance-card__details">
@@ -345,7 +407,7 @@ function renderRow(
           <div><dt>Sala</dt><dd>${escapeHtml(appointment.room.name)}</dd></div>
           <div><dt>Terapeuta</dt><dd>${escapeHtml(appointment.collaborator.fullName)}</dd></div>
           <div><dt>Check-in</dt><dd>${escapeHtml(getCheckInLabel(row))}</dd></div>
-          <div><dt>Nota medica</dt><dd>${escapeHtml(row.medicalNote ? "Registrada" : "Pendiente")}</dd></div>
+          <div><dt>Nota médica</dt><dd>${escapeHtml(row.medicalNote ? "Registrada" : "Pendiente")}</dd></div>
         </dl>
         ${status === "auto_absent_due" ? `<p class="hint-text">La inasistencia automatica requiere trazabilidad backend antes de registrarse.</p>` : ""}
         ${renderReadOnlyHint(row, role)}
@@ -353,29 +415,41 @@ function renderRow(
           ${
             canRegister
               ? `
-                <button class="attendance-action attendance-action--present" type="button" data-attendance-action="present" aria-label="Registrar asistencia" ${state.isSaving ? "disabled" : ""}>
-                  <span class="attendance-action__icon" aria-hidden="true">&#9989;</span>
-                  <span class="attendance-action__label">Asistencia</span>
-                </button>
-                <button class="attendance-action attendance-action--absent" type="button" data-attendance-action="absent" aria-label="Registrar inasistencia" ${state.isSaving ? "disabled" : ""}>
-                  <span class="attendance-action__icon" aria-hidden="true">&#10060;</span>
-                  <span class="attendance-action__label">Inasistencia</span>
+                <button class="attendance-action attendance-action--present" type="button" data-attendance-action="present" aria-label="Marcar asistencia" ${state.isSaving ? "disabled" : ""}>
+                  <span class="attendance-action__icon">
+                    ${renderAttendanceIcon("check")}
+                  </span>
+                  <span class="attendance-action__label">Marcar asistencia</span>
                 </button>
                 <button class="attendance-action attendance-action--reschedule" type="button" data-attendance-action="rescheduled" aria-label="Reagendar cita" ${state.isSaving ? "disabled" : ""}>
-                  <span class="attendance-action__icon" aria-hidden="true">&#128197;</span>
+                  <span class="attendance-action__icon">
+                    ${renderAttendanceIcon("calendar")}
+                  </span>
                   <span class="attendance-action__label">Reagendar</span>
+                </button>
+                <button class="attendance-action attendance-action--absent" type="button" data-attendance-action="absent" aria-label="Marcar no asistencia" ${state.isSaving ? "disabled" : ""}>
+                  <span class="attendance-action__icon">
+                    ${renderAttendanceIcon("x")}
+                  </span>
+                  <span class="attendance-action__label">No asistencia</span>
                 </button>
               `
               : ""
           }
-          <button class="attendance-action attendance-action--note" type="button" data-medical-note-action aria-label="${escapeHtml(noteLabel)}" ${canAddNote ? "" : "disabled"}>
-            <span class="attendance-action__icon" aria-hidden="true">&#128221;</span>
-            <span class="attendance-action__label">${escapeHtml(noteLabel)}</span>
+          <button class="attendance-action attendance-action--note" type="button" data-medical-note-action aria-label="${escapeHtml(noteAriaLabel)}" ${canAddNote ? "" : "disabled"}>
+            <span class="attendance-action__icon">
+              ${renderAttendanceIcon("note")}
+            </span>
+            <span class="attendance-action__label">Nota médica</span>
           </button>
         </div>
       </div>
     </article>
   `;
+}
+
+function renderAttendanceIcon(icon: AttendanceIconName): string {
+  return attendanceIcons[icon];
 }
 
 function renderReadOnlyHint(row: AttendanceViewModel, role: UserRole): string {
@@ -603,7 +677,7 @@ function bindAttendanceCardEvents(root: HTMLElement, state: AttendanceState, rol
         if (!row || row.medicalNote) return;
 
         if (!row.attendance) {
-          state.message = "Primero registra Asistio, Reagendar o No asistio.";
+          state.message = "Primero registra Asistencia, Reagendar o No asistencia.";
           render(root, state, role);
           return;
         }
@@ -795,8 +869,12 @@ async function deferMedicalNote(
       attendanceRecordId: state.activeNote?.attendanceRecordId ?? undefined,
     });
     state.message = "Nota medica pendiente notificada al terapeuta responsable.";
-  } catch {
-    state.message = PENDING_MEDICAL_NOTE_NOTIFICATION_CONTRACT;
+  } catch (error) {
+    state.message =
+      error instanceof Error &&
+      error.message !== PENDING_MEDICAL_NOTE_NOTIFICATION_CONTRACT
+        ? error.message
+        : null;
   } finally {
     state.activeNote = null;
     render(root, state, role);
