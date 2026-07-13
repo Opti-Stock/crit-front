@@ -4839,11 +4839,19 @@ button:disabled {
 }
 
 .app-shell--checkin .checkin-back-button {
-  left: -20px;
+  left: 0;
+}
+
+.app-shell--checkin .app-header {
+  padding-left: 56px;
 }
 
 @media (max-width: 768px) {
   .app-shell--checkin .checkin-back-button {
     left: 8px;
+  }
+
+  .app-shell--checkin .app-header {
+    padding-left: 48px;
   }
 }
