@@ -4837,3 +4837,13 @@ button:disabled {
     display: grid;
   }
 }
+
+.app-shell--checkin .checkin-back-button {
+  left: -20px;
+}
+
+@media (max-width: 768px) {
+  .app-shell--checkin .checkin-back-button {
+    left: 8px;
+  }
+}
