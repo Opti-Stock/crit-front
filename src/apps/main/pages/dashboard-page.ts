@@ -63,14 +63,15 @@ interface DailyMetricRow {
 }
 
 const DASHBOARD_RANGE_OPTIONS = [
-  { label: "7 dias", value: 7 },
-  { label: "30 dias", value: 30 },
-  { label: "90 dias", value: 90 },
+  { label: "Ventana 7 dias", value: 7 },
+  { label: "Ventana 30 dias", value: 30 },
+  { label: "Ventana 90 dias", value: 90 },
 ] as const;
+const DASHBOARD_PAGE_SIZE = 100;
 
 export function mountDashboardPage(root: HTMLElement, role: UserRole): void {
   const state: DashboardState = {
-    rangeDays: 30,
+    rangeDays: 90,
     clinicId: "all",
     appointments: [],
     clinicOptions: [],
@@ -105,42 +106,60 @@ async function loadDashboard(
       medicalNotes,
       handoffNotes,
       notifications,
-    ] =
-      await Promise.all([
-        listAppointments({
-          pageSize: 500,
-          from: range.from,
-          to: range.to,
-          clinicId: state.clinicId === "all" ? undefined : state.clinicId,
-        }),
-        listAppointments({
-          pageSize: 500,
-          from: range.from,
-          to: range.to,
-        }),
-        listAttendance({
-          pageSize: 500,
-          from: range.from,
-          to: range.to,
-          clinicId: state.clinicId === "all" ? undefined : state.clinicId,
-        }),
-        listMedicalNotes({ pageSize: 500 }),
-        listHandoffNotes({ pageSize: 500 }),
-        listNotifications({ pageSize: 500 }),
-      ]);
+    ] = await Promise.allSettled([
+      listAppointments({
+        pageSize: DASHBOARD_PAGE_SIZE,
+        from: range.from,
+        to: range.to,
+        clinicId: state.clinicId === "all" ? undefined : state.clinicId,
+      }),
+      listAppointments({
+        pageSize: DASHBOARD_PAGE_SIZE,
+        from: range.from,
+        to: range.to,
+      }),
+      listAttendance({
+        pageSize: DASHBOARD_PAGE_SIZE,
+        from: range.from,
+        to: range.to,
+        clinicId: state.clinicId === "all" ? undefined : state.clinicId,
+      }),
+      listMedicalNotes({ pageSize: DASHBOARD_PAGE_SIZE }),
+      listHandoffNotes({ pageSize: DASHBOARD_PAGE_SIZE }),
+      listNotifications({ pageSize: DASHBOARD_PAGE_SIZE }),
+    ]);
 
-    state.appointments = appointments.data;
-    state.clinicOptions = getClinics(clinicAppointments.data);
-    state.attendance = attendance.data;
-    state.medicalNotes = medicalNotes.data.filter((note) =>
-      isInsideRange(note.createdAt, range.from, range.to),
-    );
-    state.handoffNotes = handoffNotes.data.filter((note) =>
-      isInsideRange(note.createdAt, range.from, range.to),
-    );
-    state.notifications = notifications.data.filter((notification) =>
+    const failedSources: string[] = [];
+    if (appointments.status === "rejected") failedSources.push("citas");
+    if (clinicAppointments.status === "rejected") failedSources.push("clinicas");
+    if (attendance.status === "rejected") failedSources.push("asistencias");
+    if (medicalNotes.status === "rejected") failedSources.push("notas medicas");
+    if (handoffNotes.status === "rejected") failedSources.push("notas de enlace");
+    if (notifications.status === "rejected") failedSources.push("notificaciones");
+
+    state.appointments =
+      appointments.status === "fulfilled" ? appointments.value.data : [];
+    state.clinicOptions =
+      clinicAppointments.status === "fulfilled"
+        ? getClinics(clinicAppointments.value.data)
+        : getClinics(state.appointments);
+    state.attendance =
+      attendance.status === "fulfilled" ? attendance.value.data : [];
+    state.medicalNotes = (
+      medicalNotes.status === "fulfilled" ? medicalNotes.value.data : []
+    ).filter((note) => isInsideRange(note.createdAt, range.from, range.to));
+    state.handoffNotes = (
+      handoffNotes.status === "fulfilled" ? handoffNotes.value.data : []
+    ).filter((note) => isInsideRange(note.createdAt, range.from, range.to));
+    state.notifications = (
+      notifications.status === "fulfilled" ? notifications.value.data : []
+    ).filter((notification) =>
       isInsideRange(notification.createdAt, range.from, range.to),
     );
+    state.error =
+      failedSources.length > 0
+        ? `No se pudieron cargar: ${failedSources.join(", ")}. El dashboard muestra datos parciales.`
+        : null;
   } catch (error) {
     state.error =
       error instanceof Error
@@ -546,9 +565,12 @@ function getClinics(appointments: AppointmentSummary[]): { id: string; name: str
 function getRange(rangeDays: number): { from: string; to: string } {
   const now = new Date();
   const from = new Date(now);
-  from.setDate(now.getDate() - rangeDays + 1);
+  const daysBack = Math.floor(rangeDays / 2);
+  const daysForward = Math.ceil(rangeDays / 2);
+  from.setDate(now.getDate() - daysBack);
   from.setHours(0, 0, 0, 0);
   const to = new Date(now);
+  to.setDate(now.getDate() + daysForward);
   to.setHours(23, 59, 59, 999);
 
   return {
