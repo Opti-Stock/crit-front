@@ -62,7 +62,6 @@ interface DailyMetricRow {
   rescheduled: number;
 }
 
-const DASHBOARD_ALLOWED_ROLES: readonly UserRole[] = ["admin", "direccion"];
 const DASHBOARD_RANGE_OPTIONS = [
   { label: "7 dias", value: 7 },
   { label: "30 dias", value: 30 },
@@ -70,25 +69,6 @@ const DASHBOARD_RANGE_OPTIONS = [
 ] as const;
 
 export function mountDashboardPage(root: HTMLElement, role: UserRole): void {
-  if (!DASHBOARD_ALLOWED_ROLES.includes(role)) {
-    root.innerHTML = `
-      <section class="feature-page">
-        <header class="feature-header">
-          <div>
-            <p class="app-eyebrow">Dashboard</p>
-            <h2>Operational workspace</h2>
-          </div>
-        </header>
-        <section class="app-panel">
-          <h3>CRIT Assistance MVP</h3>
-          <p>Selecciona una seccion del menu para trabajar con las vistas operativas.</p>
-          <p>Rol actual: <strong>${escapeHtml(role)}</strong></p>
-        </section>
-      </section>
-    `;
-    return;
-  }
-
   const state: DashboardState = {
     rangeDays: 30,
     clinicId: "all",
@@ -596,5 +576,7 @@ function formatShortDate(dateKey: string): string {
 }
 
 function formatRole(role: UserRole): string {
-  return role === "direccion" ? "Direccion" : "Admin";
+  if (role === "direccion") return "Direccion";
+  if (role === "admin") return "Admin";
+  return role;
 }
