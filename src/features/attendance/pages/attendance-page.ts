@@ -22,10 +22,7 @@ import {
   subscribeToAttendanceRealtime,
   type AttendanceRealtimeStatus,
 } from "../services/attendance-realtime.service";
-import {
-  ATTENDANCE_SCAN_CONTRACT,
-  buildTherapeuticAttendanceScanUrl,
-} from "../services/attendance-scan.service";
+import { buildTherapeuticAttendanceScanUrl } from "../services/attendance-scan.service";
 import {
   PENDING_MEDICAL_NOTE_NOTIFICATION_CONTRACT,
   createPendingMedicalNoteNotification,
@@ -294,7 +291,7 @@ function render(root: HTMLElement, state: AttendanceState, role: UserRole): void
           : `<div data-attendance-results>${renderRows(rows, state, role)}</div>`
       }
       ${state.activeNote ? renderQuickMedicalNote(state) : ""}
-      <button class="attendance-scan-button" type="button" title="${escapeHtml(ATTENDANCE_SCAN_CONTRACT)}" data-attendance-scan>
+      <button class="attendance-scan-button" type="button" aria-label="Escanear gafete" data-attendance-scan>
         Escanear gafete
       </button>
     </section>
