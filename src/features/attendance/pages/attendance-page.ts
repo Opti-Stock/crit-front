@@ -147,7 +147,7 @@ const STATUS_CONFIG: Record<
     badgeModifier: "unregistered",
   },
   auto_absent_due: {
-    label: "No asistencia - auto pendiente",
+    label: "No asistencia - automatica",
     icon: "x",
     tone: "danger",
     badgeModifier: "auto-absent-due",

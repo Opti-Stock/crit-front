@@ -1314,21 +1314,48 @@ button:disabled,
 }
 
 .attendance-toolbar {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
+  overflow: visible;
   padding: 14px;
   border: 1px solid #d8dee5;
   border-radius: 8px;
   background: #ffffff;
 }
 
-.attendance-toolbar label,
+.attendance-toolbar > label,
 .attendance-note-form label {
   display: grid;
+  flex: 1 1 220px;
   gap: 6px;
+  min-width: 0;
   color: #17202a;
   font-weight: 700;
+}
+
+.attendance-toolbar .calendar-combobox-field {
+  flex: 1 1 420px;
+  min-width: min(100%, 280px);
+}
+
+.attendance-range-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.attendance-range-toggle button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .attendance-toolbar input,
@@ -1356,7 +1383,7 @@ button:disabled,
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr);
   gap: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
   border: 1px solid #d8dee5;
   border-radius: 8px;
@@ -1470,6 +1497,7 @@ button:disabled,
 
 .attendance-card__header {
   padding: 24px 24px 10px;
+  min-width: 0;
 }
 
 .attendance-card__header h3,
@@ -1478,6 +1506,7 @@ button:disabled,
 }
 
 .attendance-card__header > div {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1485,7 +1514,8 @@ button:disabled,
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  margin-left: auto;
   max-width: 100%;
   min-height: 44px;
   padding: 7px 12px 7px 8px;
@@ -1495,6 +1525,7 @@ button:disabled,
   font-size: 0.95rem;
   font-weight: 800;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .attendance-status-badge__icon {
@@ -1508,7 +1539,11 @@ button:disabled,
 
 .attendance-status-badge__label {
   min-width: 0;
-  overflow-wrap: anywhere;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  overflow-wrap: normal;
+  text-overflow: clip;
 }
 
 .attendance-status-badge--present {
@@ -1838,7 +1873,25 @@ button:disabled,
   }
 
   .attendance-toolbar {
-    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .attendance-toolbar > label,
+  .attendance-toolbar .calendar-combobox-field,
+  .attendance-range-toggle {
+    flex: 1 1 100%;
+  }
+
+  .attendance-range-toggle {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .attendance-range-toggle button {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
   }
 
   .attendance-card__content {
@@ -1866,7 +1919,8 @@ button:disabled,
   }
 
   .attendance-status-badge {
-    justify-self: start;
+    align-self: flex-start;
+    margin-left: 0;
   }
 
   .attendance-card__header {
@@ -4157,6 +4211,7 @@ button:disabled {
 
 .attendance-card {
   display: block;
+  overflow: visible;
   border: 1px solid #d9e2ec;
   border-radius: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #f9fffb 100%);
@@ -4189,6 +4244,7 @@ button:disabled {
 .attendance-card__header {
   align-items: flex-start;
   gap: 18px;
+  min-width: 0;
   margin-bottom: 20px;
 }
 
@@ -4226,8 +4282,11 @@ button:disabled {
 }
 
 .attendance-status-badge {
+  flex: 0 0 auto;
   gap: 8px;
+  max-width: 100%;
   min-height: 38px;
+  margin-left: auto;
   padding: 5px 14px 5px 6px;
   border-radius: 999px;
   font-size: 0.9rem;
@@ -4235,11 +4294,20 @@ button:disabled {
   white-space: nowrap;
 }
 
-.attendance-status-badge span {
+.attendance-status-badge__icon {
   width: 28px;
   min-width: 28px;
   height: 28px;
   font-size: 0.9rem;
+}
+
+.attendance-status-badge__label {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .attendance-status-badge--success {
@@ -4420,8 +4488,18 @@ button:disabled {
   }
 
   .attendance-card__header {
+    align-items: flex-start;
     flex-direction: column;
     gap: 16px;
+  }
+
+  .attendance-card__header > div {
+    width: 100%;
+  }
+
+  .attendance-status-badge {
+    margin-left: 0;
+    max-width: 100%;
   }
 
   .attendance-card__details,
