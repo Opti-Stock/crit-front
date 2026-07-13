@@ -4,6 +4,14 @@ import { getMainNavigationForRole } from "../../features/auth/services/role-navi
 import { sessionService } from "../../features/auth/services/session.service";
 import { superAdminSessionService } from "../../features/super-admin/services/super-admin-session.service";
 import { canAccessAdminEntry } from "../../guards/role-guard";
+import {
+  bindSidebarCollapse,
+  getSidebarCollapsedShellClass,
+  getSidebarIconForKey,
+  renderSidebarLogoutButton,
+  renderSidebarNavItem,
+  renderSidebarToggle,
+} from "../../components/app-sidebar";
 import type { UserRole } from "../../types/role.types";
 import { escapeHtml } from "../../utils/dom";
 import {
@@ -46,11 +54,15 @@ export function mountAdminApp(root: HTMLElement): void {
     const mainAppHref = resolveMainAppHref(session.role);
 
     root.innerHTML = `
-      <main class="app-shell app-shell--admin" aria-labelledby="admin-app-title">
+      <main class="app-shell app-shell--admin${getSidebarCollapsedShellClass()}" aria-labelledby="admin-app-title" data-app-shell>
         <aside class="app-sidebar" aria-label="Admin navigation">
           ${renderAdminBrand(mainAppHref)}
           <nav class="app-nav">
-            <span class="app-nav__item app-nav__item--active">Admin</span>
+            ${renderSidebarNavItem({
+              active: true,
+              icon: "admin",
+              label: "Admin",
+            })}
           </nav>
         </aside>
         <section class="app-content">
@@ -72,6 +84,7 @@ export function mountAdminApp(root: HTMLElement): void {
     `;
 
     bindAdminBackButton(root);
+    bindSidebarCollapse(root);
     return;
   }
 
@@ -80,20 +93,23 @@ export function mountAdminApp(root: HTMLElement): void {
   const mainAppHref = resolveMainAppHref(session.role);
 
   root.innerHTML = `
-    <main class="app-shell app-shell--admin" aria-labelledby="admin-app-title">
+    <main class="app-shell app-shell--admin${getSidebarCollapsedShellClass()}" aria-labelledby="admin-app-title" data-app-shell>
       <aside class="app-sidebar" aria-label="Admin navigation">
         ${renderAdminBrand(mainAppHref)}
         <nav class="app-nav">
           ${ADMIN_NAVIGATION_ITEMS.map((item) => {
-            const activeClass =
-              item.key === activeKey ? " app-nav__item--active" : "";
-
-            return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-admin-nav-key="${item.key}">${item.label}</a>`;
+            return renderSidebarNavItem({
+              active: item.key === activeKey,
+              dataAdminNavKey: item.key,
+              href: `#${item.key}`,
+              icon: getSidebarIconForKey(item.key),
+              label: item.label,
+            });
           }).join("")}
         </nav>
         <div class="app-session-actions">
           <span class="app-session-actions__label">${escapeHtml(session.user?.email ?? session.user?.fullName ?? formatRoleLabel(session.role))}</span>
-          <button id="admin-logout-button" class="app-logout-button" type="button">Cerrar sesion</button>
+          ${renderSidebarLogoutButton("admin-logout-button")}
         </div>
       </aside>
 
@@ -117,6 +133,7 @@ export function mountAdminApp(root: HTMLElement): void {
   }
 
   bindAdminBackButton(root);
+  bindSidebarCollapse(root);
 
   root.querySelectorAll<HTMLAnchorElement>("[data-admin-nav-key]").forEach((link) => {
     link.addEventListener("click", () => {
@@ -159,19 +176,22 @@ async function mountAdminView(
 
 function renderAdminBrand(href: string): string {
   return `
-    <div class="admin-sidebar-brand">
-      <button
+    <div class="app-sidebar__header app-sidebar__header--admin">
+      <div class="admin-sidebar-brand">
+        <button
         type="button"
         class="admin-back-circle-button"
         aria-label="Volver a la aplicación"
         title="Volver a la aplicación"
         data-admin-main-app-href="${escapeHtml(href)}"
-      >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18 9 12l6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
-      <span class="admin-sidebar-title">CRIT Assistance</span>
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18 9 12l6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <span class="admin-sidebar-title app-brand__text">CRIT Assistance</span>
+      </div>
+      ${renderSidebarToggle()}
     </div>
   `;
 }

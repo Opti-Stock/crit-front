@@ -18,6 +18,14 @@ import {
   canAccessNotifications,
   isApRole,
 } from "../../guards/role-guard";
+import {
+  bindSidebarCollapse,
+  getSidebarCollapsedShellClass,
+  getSidebarIconForKey,
+  renderSidebarBrand,
+  renderSidebarLogoutButton,
+  renderSidebarNavItem,
+} from "../../components/app-sidebar";
 import { listHandoffNotes } from "../../services/main-api/handoff-notes";
 import { listNotifications } from "../../services/main-api/notifications";
 import type { UserRole } from "../../types/role.types";
@@ -57,37 +65,53 @@ export function mountMainApp(root: HTMLElement): void {
   );
 
   root.innerHTML = `
-    <main class="app-shell app-shell--main${isApWorkspace ? " app-shell--ap" : ""} ${activeKey === "calendar" ? "app-shell--calendar" : ""}" aria-labelledby="main-app-title">
+    <main class="app-shell app-shell--main${isApWorkspace ? " app-shell--ap" : ""}${activeKey === "calendar" ? " app-shell--calendar" : ""}${getSidebarCollapsedShellClass()}" aria-labelledby="main-app-title" data-app-shell>
       <aside class="app-sidebar" aria-label="${isApWorkspace ? "Navegacion AP" : "Main navigation"}">
-        <p class="app-brand">${isApWorkspace ? "CRIT Assist AP" : "CRIT Assistance"}</p>
+        ${renderSidebarBrand(isApWorkspace ? "CRIT Assist AP" : "CRIT Assistance")}
         <nav class="app-nav">
           ${mainNavigation
             .map((item) => {
               const activeClass =
-                item.key === activeKey ? " app-nav__item--active" : "";
+                item.key === activeKey;
               if (item.key === "badge-scan") {
-                return `<a class="app-nav__item" href="/checkin.html?mode=reception-checkin"><span>${item.label}</span></a>`;
+                return renderSidebarNavItem({
+                  href: "/checkin.html?mode=reception-checkin",
+                  icon: getSidebarIconForKey(item.key),
+                  label: item.label,
+                });
               }
               const badge =
                 item.key === "handoff-notes"
                   ? `<span class="app-nav__badge" data-handoff-nav-badge hidden></span>`
                   : item.key === "notifications"
-                    ? `<span class="app-nav__badge" data-notifications-nav-badge hidden></span>`
+                  ? `<span class="app-nav__badge" data-notifications-nav-badge hidden></span>`
                   : "";
-              return `<a class="app-nav__item${activeClass}" href="#${item.key}" data-nav-key="${item.key}"><span>${item.label}</span>${badge}</a>`;
+              return renderSidebarNavItem({
+                active: activeClass,
+                badgeHtml: badge,
+                dataNavKey: item.key,
+                href: `#${item.key}`,
+                icon: getSidebarIconForKey(item.key),
+                label: item.label,
+              });
             })
             .join("")}
 
           ${
             adminEntry
-              ? `<a class="app-nav__item app-nav__item--admin-entry" href="/admin.html">${adminEntry.label}</a>`
+              ? renderSidebarNavItem({
+                  extraClass: "app-nav__item--admin-entry",
+                  href: "/admin.html",
+                  icon: "admin",
+                  label: adminEntry.label,
+                })
               : ""
           }
         </nav>
         <div class="app-session-actions">
           <span class="app-session-actions__eyebrow">Usuario autenticado</span>
           <span class="app-session-actions__label">${escapeHtml(session.user?.email ?? session.user?.fullName ?? formatRoleLabel(session.role))}</span>
-          <button id="main-logout-button" class="app-logout-button" type="button">Cerrar sesion</button>
+          ${renderSidebarLogoutButton("main-logout-button")}
         </div>
       </aside>
       <section class="app-content ${activeKey === "calendar" ? "app-content--calendar" : ""}">
@@ -110,6 +134,7 @@ export function mountMainApp(root: HTMLElement): void {
 
   bindHandoffNavBadge(root, session.role);
   bindNotificationsNavBadge(root, session.role);
+  bindSidebarCollapse(root);
 
   root.querySelectorAll<HTMLAnchorElement>("[data-nav-key]").forEach((link) => {
     link.addEventListener("click", (event) => {
