@@ -65,6 +65,8 @@ export interface CatalogItem {
   name?: string;
   folio?: string;
   roles?: string[];
+  clinic?: { id: string; name: string };
+  clinicId?: string;
 }
 
 export interface MedicalNoteSummary {
@@ -115,6 +117,8 @@ export type NotificationType =
   | "appointment_change"
   | "handoff_note_received"
   | "administrative_alert";
+
+export type NotificationTypeFilter = NotificationType;
 
 export interface NotificationSummary {
   id: string;

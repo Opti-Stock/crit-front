@@ -65,6 +65,9 @@ export function mountMainApp(root: HTMLElement): void {
             .map((item) => {
               const activeClass =
                 item.key === activeKey ? " app-nav__item--active" : "";
+              if (item.key === "badge-scan") {
+                return `<a class="app-nav__item" href="/checkin.html?mode=reception-checkin"><span>${item.label}</span></a>`;
+              }
               const badge =
                 item.key === "handoff-notes"
                   ? `<span class="app-nav__badge" data-handoff-nav-badge hidden></span>`
@@ -329,6 +332,8 @@ function formatRoleLabel(role: string): string {
       return "Direccion";
     case "recepcion":
       return "Recepcion";
+    case "recepcion_general":
+      return "Recepcion general";
     case "coordinador":
       return "Coordinador";
     case "medico":

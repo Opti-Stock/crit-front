@@ -5,7 +5,8 @@ import type {
 
 export type CalendarVisualState =
   | AppointmentStatus
-  | AttendanceStatus;
+  | AttendanceStatus
+  | "reschedule_requested";
 
 export interface CalendarStatusConfig {
   label: string;
@@ -30,6 +31,11 @@ export const CALENDAR_STATUS_CONFIG: Record<
   rescheduled: {
     label: "Reprogramada",
     shortLabel: "Reprog.",
+    tone: "warning",
+  },
+  reschedule_requested: {
+    label: "Por reagendar",
+    shortLabel: "Por reag.",
     tone: "warning",
   },
   present: {

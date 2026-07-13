@@ -6,6 +6,7 @@ import {
 import type {
   NotificationStatusFilter,
   NotificationSummary,
+  NotificationTypeFilter,
 } from "../../../types/operational.types";
 import type { UserRole } from "../../../types/role.types";
 import { canAccessNotifications } from "../../../guards/role-guard";
@@ -17,7 +18,8 @@ import {
 } from "../services/notifications-realtime.service";
 
 interface NotificationsState {
-  filter: NotificationStatusFilter | "";
+  statusFilter: NotificationStatusFilter | "";
+  typeFilter: NotificationTypeFilter | "";
   items: NotificationSummary[];
   message: string | null;
   isLoading: boolean;
@@ -34,7 +36,8 @@ export function mountNotificationsPage(root: HTMLElement, role: UserRole): void 
   }
 
   const state: NotificationsState = {
-    filter: "",
+    statusFilter: "",
+    typeFilter: "",
     items: [],
     message: null,
     isLoading: true,
@@ -77,7 +80,8 @@ async function load(
   try {
     const result = await listNotifications({
       pageSize: 50,
-      status: state.filter || undefined,
+      status: state.statusFilter || undefined,
+      type: state.typeFilter || undefined,
     });
     state.items = result.data;
     state.message = null;
@@ -113,10 +117,17 @@ function render(root: HTMLElement, state: NotificationsState, role: UserRole): v
         </div>
         <div class="notifications-header__actions">
           ${renderRealtimeStatus(state)}
-          <select data-notification-filter aria-label="Filtrar notificaciones">
-            <option value="" ${state.filter === "" ? "selected" : ""}>Todas</option>
-            <option value="unread" ${state.filter === "unread" ? "selected" : ""}>No leidas</option>
-            <option value="read" ${state.filter === "read" ? "selected" : ""}>Leidas</option>
+          <select data-notification-status-filter aria-label="Filtrar por lectura">
+            <option value="" ${state.statusFilter === "" ? "selected" : ""}>Todas</option>
+            <option value="unread" ${state.statusFilter === "unread" ? "selected" : ""}>No leidas</option>
+            <option value="read" ${state.statusFilter === "read" ? "selected" : ""}>Leidas</option>
+          </select>
+          <select data-notification-type-filter aria-label="Filtrar por evento">
+            <option value="" ${state.typeFilter === "" ? "selected" : ""}>Todos los eventos</option>
+            ${NOTIFICATION_TYPE_OPTIONS.map(
+              ([value, label]) =>
+                `<option value="${value}" ${state.typeFilter === value ? "selected" : ""}>${escapeHtml(label)}</option>`,
+            ).join("")}
           </select>
         </div>
       </header>
@@ -192,11 +203,21 @@ function bindEvents(
   state: NotificationsState,
   role: UserRole,
 ): void {
-  root.querySelector<HTMLSelectElement>("[data-notification-filter]")?.addEventListener(
+  root.querySelector<HTMLSelectElement>("[data-notification-status-filter]")?.addEventListener(
     "change",
     (event) => {
       const select = event.currentTarget as HTMLSelectElement;
-      state.filter = select.value as NotificationsState["filter"];
+      state.statusFilter = select.value as NotificationsState["statusFilter"];
+      state.isLoading = true;
+      render(root, state, role);
+      void load(root, state, role);
+    },
+  );
+  root.querySelector<HTMLSelectElement>("[data-notification-type-filter]")?.addEventListener(
+    "change",
+    (event) => {
+      const select = event.currentTarget as HTMLSelectElement;
+      state.typeFilter = select.value as NotificationsState["typeFilter"];
       state.isLoading = true;
       render(root, state, role);
       void load(root, state, role);
@@ -316,6 +337,8 @@ function getNotificationPatientLabel(notification: NotificationSummary): string 
   return (
     readString(metadataPatient, "fullName") ??
     readString(metadataPatient, "name") ??
+    readString(metadata, "patientFullName") ??
+    readString(notification.target ?? null, "patientName") ??
     "Paciente no disponible"
   );
 }
@@ -338,6 +361,15 @@ function formatNotificationType(type: string): string {
       return type;
   }
 }
+
+const NOTIFICATION_TYPE_OPTIONS: readonly [NotificationTypeFilter, string][] = [
+  ["appointment_reminder", "Recordatorio de cita"],
+  ["pending_note", "Nota pendiente"],
+  ["unregistered_attendance", "Asistencia sin registrar"],
+  ["appointment_change", "Cambio de cita"],
+  ["handoff_note_received", "Nota de enlace"],
+  ["administrative_alert", "Aviso administrativo"],
+];
 
 function upsertNotification(
   items: readonly NotificationSummary[],

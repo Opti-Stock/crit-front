@@ -116,6 +116,8 @@ interface CalendarState {
   selectedAppointmentId: string | null;
   selectedMonthDateKey: string | null;
   showCreateForm: boolean;
+  editingAppointmentId: string | null;
+  formClinicId: string;
   isFiltersCollapsed: boolean;
   showMoreFilters: boolean;
   draftStartsAt: Date | null;
@@ -163,6 +165,8 @@ export function mountCalendarPage(root: HTMLElement, role: UserRole): void {
     selectedAppointmentId: null,
     selectedMonthDateKey: null,
     showCreateForm: false,
+    editingAppointmentId: null,
+    formClinicId: "",
     isFiltersCollapsed: isMobile,
     showMoreFilters: false,
     draftStartsAt: null,
@@ -298,9 +302,24 @@ function renderCreateAppointmentPanel(state: CalendarState): string {
 }
 
 function renderForm(state: CalendarState): string {
-  const defaultStart = state.draftStartsAt ?? nextBusinessStart();
+  const editingAppointment = getEditingAppointment(state);
+  const defaultStart = editingAppointment
+    ? new Date(editingAppointment.startsAt)
+    : state.draftStartsAt ?? nextBusinessStart();
   const defaultEnd = new Date(defaultStart);
-  defaultEnd.setMinutes(defaultEnd.getMinutes() + 45);
+  if (editingAppointment) {
+    defaultEnd.setTime(new Date(editingAppointment.endsAt).getTime());
+  } else {
+    defaultEnd.setMinutes(defaultEnd.getMinutes() + 45);
+  }
+  const selectedClinicId = state.formClinicId || editingAppointment?.clinic.id || "";
+  const selectedRoomId =
+    editingAppointment && editingAppointment.clinic.id === selectedClinicId
+      ? editingAppointment.room.id
+      : "";
+  const selectedCollaboratorId = editingAppointment?.collaborator.id ?? "";
+  const selectedAppointmentTypeId = editingAppointment?.appointmentType.id ?? "";
+  const title = editingAppointment ? "Reagendar cita" : "Nueva cita";
 
   if (
     defaultEnd.getHours() > APPOINTMENT_END_HOUR ||
@@ -314,23 +333,23 @@ function renderForm(state: CalendarState): string {
     <form class="form-panel form-grid calendar-form calendar-form--panel" data-appointment-form>
       <div class="calendar-form__title">
         <div>
-          <h3>Nueva cita</h3>
-          <p>Captura manual. La validacion final de disponibilidad depende del backend.</p>
+          <h3>${title}</h3>
+          <p>Selecciona el nuevo horario, profesional, clinica y consultorio.</p>
         </div>
-        <button class="icon-button icon-button--danger" type="button" data-calendar-action="toggle-form" aria-label="Cerrar nueva cita">x</button>
+        <button class="icon-button icon-button--danger" type="button" data-calendar-action="toggle-form" aria-label="Cerrar formulario">x</button>
       </div>
       ${renderPatientCombobox("form", "Paciente", state.patientComboboxes.form, {
         hiddenName: "patientId",
         placeholder: "Escribe el nombre del paciente",
         required: true,
       })}
-      ${selectField("collaboratorId", "Profesional", state.collaborators)}
-      ${selectField("clinicId", "Clinica", state.clinics)}
-      ${selectField("roomId", "Cuarto", state.rooms)}
-      ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes)}
+      ${selectField("collaboratorId", "Profesional", state.collaborators, selectedCollaboratorId)}
+      ${selectField("clinicId", "Clinica", state.clinics, selectedClinicId)}
+      ${selectField("roomId", "Cuarto", getRoomsForClinic(state, selectedClinicId), selectedRoomId)}
+      ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes, selectedAppointmentTypeId)}
       <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" min="07:00" max="18:00" value="${formatInputDateTime(defaultStart)}" required /></label>
       <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" min="07:00" max="18:00" value="${formatInputDateTime(defaultEnd)}" required /></label>
-      <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Creando..." : "Crear cita"}</button>
+      <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Guardando..." : editingAppointment ? "Guardar cambios" : "Crear cita"}</button>
     </form>
   `;
 }
@@ -391,7 +410,7 @@ function renderSidebar(
               ${statusSelect("attendanceStatus", "Estado de asistencia", state.filters.attendanceStatus, [
                 ["present", "Asistencia"],
                 ["absent", "Inasistencia"],
-                ["rescheduled", "Reprogramada"],
+                ["rescheduled", "Por reagendar"],
               ])}
             `
             : ""
@@ -445,6 +464,7 @@ function renderLegend(): string {
     "scheduled",
     "cancelled",
     "rescheduled",
+    "reschedule_requested",
     "present",
     "absent",
   ];
@@ -1033,6 +1053,20 @@ function filterSelect(
   `;
 }
 
+function getRoomsForClinic(state: CalendarState, clinicId: string): CatalogItem[] {
+  if (!clinicId) return [];
+  return state.rooms.filter((room) => (room.clinic?.id ?? room.clinicId) === clinicId);
+}
+
+function getEditingAppointment(state: CalendarState): AppointmentSummary | null {
+  if (!state.editingAppointmentId) return null;
+  return (
+    state.appointments.find(
+      (appointment) => appointment.id === state.editingAppointmentId,
+    ) ?? null
+  );
+}
+
 function statusSelect(
   name: keyof CalendarFilters,
   label: string,
@@ -1057,6 +1091,13 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
       event.preventDefault();
       const data = new FormData(event.currentTarget as HTMLFormElement);
       void createAppointmentFromForm(root, state, data);
+    },
+  );
+  root.querySelector<HTMLSelectElement>('[data-appointment-form] select[name="clinicId"]')?.addEventListener(
+    "change",
+    (event) => {
+      state.formClinicId = (event.currentTarget as HTMLSelectElement).value;
+      render(root, state);
     },
   );
   root
@@ -1144,6 +1185,7 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
       date.setHours(hour, 0, 0, 0);
       state.draftStartsAt = date;
       state.showCreateForm = true;
+      state.editingAppointmentId = null;
       render(root, state);
     });
   });
@@ -1494,6 +1536,8 @@ async function createAppointmentFromForm(
 ): Promise<void> {
   try {
     const patientId = String(data.get("patientId") ?? "").trim();
+    const clinicId = String(data.get("clinicId") ?? "").trim();
+    const roomId = String(data.get("roomId") ?? "").trim();
     const startsAt = parseAppointmentDateTime(String(data.get("startsAt") ?? ""));
     const endsAt = parseAppointmentDateTime(String(data.get("endsAt") ?? ""));
 
@@ -1503,6 +1547,10 @@ async function createAppointmentFromForm(
 
     if (!startsAt || !endsAt) {
       throw new Error("Selecciona horarios de inicio y fin validos.");
+    }
+
+    if (!clinicId || !getRoomsForClinic(state, clinicId).some((room) => room.id === roomId)) {
+      throw new Error("Selecciona un consultorio de la clinica elegida.");
     }
 
     if (
@@ -1527,27 +1575,40 @@ async function createAppointmentFromForm(
 
     state.isSaving = true;
     render(root, state);
-    await createAppointment({
+    const appointmentInput = {
       patientId,
       collaboratorId: String(data.get("collaboratorId")),
-      clinicId: String(data.get("clinicId")),
-      roomId: String(data.get("roomId")),
+      clinicId,
+      roomId,
       appointmentTypeId: String(data.get("appointmentTypeId")),
       startsAt: startsAt.toISOString(),
       endsAt: endsAt.toISOString(),
       preSessionMinutes: DEFAULT_PRE_SESSION_MINUTES,
       postSessionMinutes: DEFAULT_POST_SESSION_MINUTES,
-    });
+    };
+
+    if (state.editingAppointmentId) {
+      await updateAppointment(state.editingAppointmentId, {
+        ...appointmentInput,
+        status: "rescheduled",
+      });
+      state.message = "Cita reprogramada.";
+    } else {
+      await createAppointment(appointmentInput);
+      state.message = "Cita creada.";
+    }
     state.isLoading = true;
     state.isSaving = false;
     state.showCreateForm = false;
+    state.editingAppointmentId = null;
+    state.formClinicId = "";
     state.draftStartsAt = null;
     resetPatientCombobox(state.patientComboboxes.form);
     render(root, state);
     await load(root, state);
   } catch (error) {
     state.isSaving = false;
-    state.message = error instanceof Error ? error.message : "No se pudo crear la cita.";
+    state.message = error instanceof Error ? error.message : "No se pudo guardar la cita.";
     render(root, state);
   }
 }
@@ -1601,6 +1662,11 @@ function handleCalendarAction(
       return;
     case "toggle-form":
       state.showCreateForm = !state.showCreateForm;
+      if (!state.showCreateForm) {
+        resetAppointmentFormState(state);
+      } else {
+        state.editingAppointmentId = null;
+      }
       render(root, state);
       return;
     case "toggle-filters":
@@ -1638,7 +1704,7 @@ function handleCalendarAction(
       void registerManualCheckIn(root, state, source?.dataset.checkinAppointmentId);
       return;
     case "reschedule-appointment":
-      void updateAppointmentStatus(root, state, source?.dataset.appointmentStateId, "rescheduled");
+      startReschedule(root, state, source?.dataset.appointmentStateId);
       return;
     case "cancel-appointment":
       void updateAppointmentStatus(root, state, source?.dataset.appointmentStateId, "cancelled");
@@ -1646,6 +1712,48 @@ function handleCalendarAction(
     default:
       return;
   }
+}
+
+function startReschedule(
+  root: HTMLElement,
+  state: CalendarState,
+  appointmentId: string | undefined,
+): void {
+  if (!appointmentId) return;
+  if (!canCreateAppointments(state.role)) {
+    state.message = "Tu rol no tiene permisos para modificar citas.";
+    render(root, state);
+    return;
+  }
+
+  const appointment = state.appointments.find((candidate) => candidate.id === appointmentId);
+  if (!appointment) {
+    state.message = "No se encontro la cita para reagendar.";
+    render(root, state);
+    return;
+  }
+
+  state.selectedAppointmentId = null;
+  state.editingAppointmentId = appointment.id;
+  state.showCreateForm = true;
+  state.formClinicId = appointment.clinic.id;
+  state.draftStartsAt = new Date(appointment.startsAt);
+  state.patientComboboxes.form.query = appointment.patient.fullName;
+  state.patientComboboxes.form.selected = {
+    id: appointment.patient.id,
+    fullName: appointment.patient.fullName,
+  };
+  state.patientComboboxes.form.options = [];
+  state.patientComboboxes.form.isOpen = false;
+  state.patientComboboxes.form.status = "idle";
+  render(root, state);
+}
+
+function resetAppointmentFormState(state: CalendarState): void {
+  state.editingAppointmentId = null;
+  state.formClinicId = "";
+  state.draftStartsAt = null;
+  resetPatientCombobox(state.patientComboboxes.form);
 }
 
 function updateFilter(

@@ -68,6 +68,7 @@ interface AttendanceState {
   rows: AttendanceViewModel[];
   search: string;
   selectedDate: string;
+  rangeMode: "today" | "past" | "future";
   activeNote: QuickMedicalNoteDraft | null;
   realtimeStatus: AttendanceRealtimeStatus;
   realtimeMessage: string | null;
@@ -79,7 +80,7 @@ interface AttendanceState {
 }
 
 const CLINICAL_ATTENDANCE_ROLES: readonly UserRole[] = ["medico", "terapeuta"];
-const DATE_QUERY_ROLES: readonly UserRole[] = ["coordinador", "direccion", "admin"];
+const DATE_QUERY_ROLES: readonly UserRole[] = ["coordinador", "direccion", "admin", "medico", "terapeuta", "recepcion"];
 const READ_ONLY_ROLES: readonly UserRole[] = ["coordinador", "direccion", "admin"];
 const AUTO_ABSENT_TOLERANCE_MINUTES = 15;
 
@@ -172,6 +173,7 @@ export function mountAttendancePage(root: HTMLElement, role: UserRole): void {
     rows: [],
     search: "",
     selectedDate: toInputDate(new Date()),
+    rangeMode: "today",
     activeNote: null,
     realtimeStatus: "unavailable",
     realtimeMessage: null,
@@ -217,7 +219,7 @@ async function load(
     return;
   }
 
-  const range = dayRange(state.selectedDate);
+  const range = attendanceRange(state);
   const collaboratorId =
     isClinicalAttendanceRole(role)
       ? state.currentCollaboratorId ?? undefined
@@ -326,6 +328,11 @@ function renderToolbar(state: AttendanceState, role: UserRole): string {
       ${
         canQueryDates
           ? `
+            <div class="button-row attendance-range-toggle" role="group" aria-label="Rango de asistencias">
+              <button class="secondary-action" type="button" data-attendance-range="past" ${state.rangeMode === "past" ? "data-active=\"true\"" : ""}>Pasadas</button>
+              <button class="secondary-action" type="button" data-attendance-range="today" ${state.rangeMode === "today" ? "data-active=\"true\"" : ""}>Hoy</button>
+              <button class="secondary-action" type="button" data-attendance-range="future" ${state.rangeMode === "future" ? "data-active=\"true\"" : ""}>Futuras</button>
+            </div>
             <label>
               Fecha
               <input name="selectedDate" type="date" value="${escapeHtml(state.selectedDate)}" data-attendance-date />
@@ -621,12 +628,24 @@ function bindEvents(root: HTMLElement, state: AttendanceState, role: UserRole): 
       if (!canQueryOtherDates(role)) return;
 
       state.selectedDate = (event.currentTarget as HTMLInputElement).value;
+      state.rangeMode = "today";
       state.page = 1;
       state.isLoading = true;
       render(root, state, role);
       void load(root, state, role);
     },
   );
+
+  root.querySelectorAll<HTMLButtonElement>("[data-attendance-range]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!canQueryOtherDates(role)) return;
+      state.rangeMode = (button.dataset.attendanceRange as AttendanceState["rangeMode"]) ?? "today";
+      state.page = 1;
+      state.isLoading = true;
+      render(root, state, role);
+      void load(root, state, role);
+    });
+  });
 
   root.querySelector<HTMLButtonElement>("[data-attendance-scan]")?.addEventListener(
     "click",
@@ -1054,6 +1073,23 @@ function dayRange(inputDate: string): { from: string; to: string } {
     from: date.toISOString(),
     to: end.toISOString(),
   };
+}
+
+function attendanceRange(state: AttendanceState): { from: string; to: string } {
+  if (state.rangeMode === "today") return dayRange(state.selectedDate);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (state.rangeMode === "past") {
+    const past = new Date(today);
+    past.setDate(past.getDate() - 90);
+    return { from: past.toISOString(), to: today.toISOString() };
+  }
+
+  const future = new Date(today);
+  future.setDate(future.getDate() + 90);
+  return { from: today.toISOString(), to: future.toISOString() };
 }
 
 function toInputDate(date: Date): string {
