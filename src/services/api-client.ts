@@ -10,7 +10,6 @@ import type {
 interface CreateApiClientOptions {
   baseUrl: string;
   defaultHeaders?: HeadersInit;
-  getAccessToken?: () => string | null;
 }
 
 export class ApiClientError extends Error {
@@ -57,21 +56,20 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         requestOptions.headers,
         requestOptions.body,
       );
-      const accessToken = options.getAccessToken?.();
-
-      if (accessToken && !headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${accessToken}`);
-      }
-
       const response = await fetch(url, {
         ...requestOptions,
         body: serializeBody(requestOptions.body),
         headers,
         method: requestOptions.method ?? "GET",
+        credentials: "same-origin",
       });
 
       if (!response.ok) {
-        throw new ApiClientError(response, await parseErrorPayload(response));
+        const error = new ApiClientError(response, await parseErrorPayload(response));
+        if ([401, 403, 503].includes(response.status)) {
+          window.dispatchEvent(new CustomEvent("crit:http-error", { detail: error }));
+        }
+        throw error;
       }
 
       return parseResponseEnvelope<TResponse, TMeta>(response);

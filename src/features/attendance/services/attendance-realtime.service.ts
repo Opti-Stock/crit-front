@@ -3,7 +3,6 @@ import type {
   AttendanceSummary,
 } from "../../../types/operational.types";
 import { appConfig } from "../../../config/env";
-import { sessionService } from "../../auth/services/session.service";
 import { subscribeToSse } from "../../../services/realtime/sse-client";
 
 export type AttendanceRealtimeStatus = "connected" | "unavailable" | "error";
@@ -26,7 +25,6 @@ export function subscribeToAttendanceRealtime(
 ): AttendanceRealtimeSubscription {
   const subscription = subscribeToSse({
     url: `${appConfig.mainApiUrl}/realtime/events`,
-    accessToken: sessionService.getAccessToken(),
     onOpen: () => handlers.onStatusChange?.("connected"),
     onError: (message) => handlers.onStatusChange?.("error", message || ATTENDANCE_REALTIME_CONTRACT),
     onEvent: (eventName, envelope) => {

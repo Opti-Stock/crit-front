@@ -32,6 +32,7 @@ export interface ApiClient {
 export interface ApiErrorPayload {
   code?: string;
   message?: string;
+  requestId?: string;
   details?: unknown;
 }
 

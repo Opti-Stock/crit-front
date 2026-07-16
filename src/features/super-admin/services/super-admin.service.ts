@@ -6,7 +6,6 @@ import type {
 } from "../types/super-admin.types";
 
 interface LoginResponse {
-  accessToken: string;
   superAdmin: {
     fullName: string;
     email: string;
@@ -19,6 +18,10 @@ export const superAdminService = {
       method: "POST",
       body: input,
     });
+  },
+
+  logout() {
+    return superAdminApiClient.request<void>("/auth/logout", { method: "POST" });
   },
 
   listTenants() {

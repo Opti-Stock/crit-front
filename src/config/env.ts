@@ -30,10 +30,15 @@ function readBooleanEnvValue(key: string, fallback: boolean): boolean {
 
 export const appConfig = {
   appName: readEnvValue("VITE_APP_NAME", "CRIT Assistance"),
-  mainApiUrl: readEnvValue("VITE_MAIN_API_URL", "http://localhost:3000/api"),
-  adminApiUrl: readEnvValue("VITE_ADMIN_API_URL", "http://localhost:3001/admin"),
-  checkinApiUrl: readEnvValue("VITE_CHECKIN_API_URL", "http://localhost:3002/checkin"),
-  superAdminApiUrl: readEnvValue("VITE_SUPER_ADMIN_API_URL", "http://localhost:3003/super-admin"),
+  appEnv: readEnvValue("VITE_APP_ENV", "local"),
+  mainApiUrl: readEnvValue("VITE_MAIN_API_URL", "/api"),
+  adminApiUrl: readEnvValue("VITE_ADMIN_API_URL", "/admin"),
+  checkinApiUrl: readEnvValue("VITE_CHECKIN_API_URL", "/checkin"),
+  superAdminApiUrl: readEnvValue("VITE_SUPER_ADMIN_API_URL", "/super-admin"),
   authBypassEnabled: readBooleanEnvValue("VITE_AUTH_BYPASS_ENABLED", false),
   adminMocksEnabled: readBooleanEnvValue("VITE_USE_ADMIN_MOCKS", false),
 } as const;
+
+if (appConfig.appEnv !== "local" && (appConfig.authBypassEnabled || appConfig.adminMocksEnabled)) {
+  throw new Error("Authentication bypass and admin mocks are only allowed locally.");
+}

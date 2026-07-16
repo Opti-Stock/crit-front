@@ -70,7 +70,6 @@ function renderLogin(root: HTMLElement, errorMessage: string | null = null): voi
       });
       sessionService.clearSession();
       superAdminSessionService.setSession({
-        accessToken: response.accessToken,
         fullName: response.superAdmin.fullName,
         email: response.superAdmin.email,
       });
@@ -134,7 +133,12 @@ function renderShell(root: HTMLElement): void {
 
   bindSidebarCollapse(root);
 
-  root.querySelector<HTMLButtonElement>("[data-platform-logout]")?.addEventListener("click", () => {
+  root.querySelector<HTMLButtonElement>("[data-platform-logout]")?.addEventListener("click", async () => {
+    try {
+      await superAdminService.logout();
+    } catch {
+      // Always clear the local profile on explicit logout.
+    }
     superAdminSessionService.clearSession();
     mountSuperAdminApp(root);
   });

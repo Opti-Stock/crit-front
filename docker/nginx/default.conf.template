@@ -1,0 +1,25 @@
+server {
+  listen 8080;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+  server_tokens off;
+
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(self), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
+
+  location = /health { access_log off; return 200 "ok\n"; add_header Content-Type text/plain; }
+
+  location /api/ { proxy_pass ${MAIN_API_UPSTREAM}; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+  location /admin/ { proxy_pass ${ADMIN_API_UPSTREAM}; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+  location /checkin/ { proxy_pass ${CHECKIN_API_UPSTREAM}; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+  location /super-admin/ { proxy_pass ${SUPER_ADMIN_API_UPSTREAM}; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+
+  location /assets/ { try_files $uri =404; expires 1y; add_header Cache-Control "public, immutable"; }
+  location / { try_files $uri $uri/ =404; }
+  error_page 404 /error.html?status=404;
+}

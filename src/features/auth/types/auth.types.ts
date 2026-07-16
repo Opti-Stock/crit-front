@@ -1,7 +1,6 @@
 import type { UserRole } from "../../../types/role.types";
 
 export interface SessionData {
-  accessToken: string;
   role: UserRole;
   user?: {
     id: string;
