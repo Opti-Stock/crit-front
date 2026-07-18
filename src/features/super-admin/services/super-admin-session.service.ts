@@ -1,24 +1,22 @@
 export interface SuperAdminSession {
-  accessToken: string;
   fullName: string;
   email: string;
 }
 
-const SESSION_STORAGE_KEY = "crit-assistance.super-admin-session";
+const SESSION_STORAGE_KEY = "crit-assistance.super-admin-profile";
 
 export class SuperAdminSessionService {
   getSession(): SuperAdminSession | null {
-    const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    const rawSession = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!rawSession) return null;
 
     try {
       const parsed = JSON.parse(rawSession) as Partial<SuperAdminSession>;
-      if (!parsed.accessToken || !parsed.fullName || !parsed.email) {
+      if (!parsed.fullName || !parsed.email) {
         this.clearSession();
         return null;
       }
       return {
-        accessToken: parsed.accessToken,
         fullName: parsed.fullName,
         email: parsed.email,
       };
@@ -28,16 +26,12 @@ export class SuperAdminSessionService {
     }
   }
 
-  getAccessToken(): string | null {
-    return this.getSession()?.accessToken ?? null;
-  }
-
   setSession(session: SuperAdminSession): void {
-    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   }
 
   clearSession(): void {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
   }
 }
 

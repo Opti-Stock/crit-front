@@ -1,137 +1,38 @@
 # crit-front
 
-Frontend web del sistema de optimización de asistencias para CRIT.
+Frontend Vanilla TypeScript/Vite de CRIT Assist. Contiene las aplicaciones operativa, administrativa, check-in y superadministración.
 
-## Propósito
+## Inicio local
 
-Este repositorio contiene la interfaz web desktop/responsive del sistema. El frontend consume dos APIs:
-
-- `crit-api` para operación principal.
-- `crit-api/admin-api` para administración.
-- `crit-api/super-admin-api` para administración global multi-CRIT.
-
-## Alcance del MVP
-
-Incluye:
-
-- Login / logout.
-- Página de asistencias.
-- Captura de nota médica.
-- Exportación de nota médica a PDF desde frontend.
-- Calendario / agenda.
-- Notificaciones internas.
-- Notas de enlace.
-- Admin Page separada.
-- Rutas protegidas por rol.
-
-Fuera de alcance:
-
-- App móvil.
-- Modo offline.
-- Módulo de pagos.
-
-## Stack inicial
-
-- HTML.
-- CSS.
-- TypeScript.
-- Vite Vanilla TypeScript recomendado.
-- Fetch o Axios para consumo de API.
-- Librería de PDF por definir: `jsPDF`, `pdf-lib` o `html2pdf.js`.
-
-## Estructura
-
-```txt
-crit-front/
-├── public/
-├── src/
-│   ├── apps/
-│   │   ├── main/
-│   │   └── admin/
-│   ├── assets/
-│   ├── components/
-│   ├── features/
-│   ├── services/
-│   ├── config/
-│   ├── guards/
-│   ├── types/
-│   └── utils/
-├── index.html
-├── admin.html
-├── .env.example
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+```powershell
+npm ci --legacy-peer-deps
+Copy-Item .env.local.example .env.local
+npm run dev
 ```
 
-## Apps internas
+Vite sirve el frontend en `http://localhost:5173` y enruta `/api`, `/admin`, `/checkin` y `/super-admin` a las APIs locales. Render y producción usan las mismas rutas relativas.
 
-### Main App
+## Seguridad de sesión
 
-Ubicación:
+El navegador no recibe ni conserva JWT. Las APIs autentican mediante cookies HttpOnly, `Secure` fuera de local y `SameSite=Lax`. `sessionStorage` contiene únicamente el perfil no sensible necesario para navegación. El bypass y los mocks fallan al iniciar si `VITE_APP_ENV` no es `local`.
 
-```txt
-src/apps/main/
+## Aplicaciones
+
+- `/`: operación, calendario, asistencia, notas y notificaciones.
+- `/admin.html`: administración por tenant.
+- `/checkin.html`: recepción y lectura de códigos.
+- `/super-admin.html`: administración global.
+- `/error.html`: errores 401, 403, 404, 500, 503 y sin conexión.
+
+## Validación
+
+```powershell
+npm run lint
+npm test
+npm run test:e2e
+npm run build
 ```
 
-Contendrá las pantallas operativas:
+El contenedor compila con Vite y sirve los assets mediante Nginx. Las variables `*_UPSTREAM` apuntan a los cuatro servicios de API.
 
-- Home.
-- Asistencias.
-- Calendario.
-- Notas médicas.
-- Notas de enlace.
-- Notificaciones.
-
-### Admin App
-
-Ubicación:
-
-```txt
-src/apps/admin/
-```
-
-Contendrá las pantallas administrativas:
-
-- Usuarios.
-- Roles.
-- Permisos.
-- Gestión de clínicas.
-- Gestión de colaboradores.
-
-## Variables de entorno
-
-Crear un archivo `.env` basado en `.env.example`.
-
-```env
-VITE_MAIN_API_URL=http://localhost:3000/api
-VITE_ADMIN_API_URL=http://localhost:3001/admin
-VITE_SUPER_ADMIN_API_URL=http://localhost:3003/super-admin
-VITE_APP_NAME=CRIT Assistance
-VITE_AUTH_BYPASS_ENABLED=true
-```
-
-Entradas locales:
-
-- `index.html`: app operativa.
-- `admin.html`: admin por tenant.
-- `super-admin.html`: super admin global separado.
-
-## Convención de ramas
-
-```txt
-main
-dev
-feat/OPT-00-descripcion
-fix/OPT-00-descripcion
-chore/OPT-00-descripcion
-docs/OPT-00-descripcion
-refactor/OPT-00-descripcion
-```
-
-## Responsables
-
-Frontend:
-
-- Diego.
-- Giselle.
+Consulta [docs/README.md](docs/README.md) para operación, seguridad y despliegue.

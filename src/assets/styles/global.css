@@ -4933,3 +4933,34 @@ button:disabled {
     padding-left: 48px;
   }
 }
+
+.system-error {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: #f5f7f8;
+  color: #17212b;
+}
+
+.system-error__content {
+  width: min(100%, 560px);
+  border-left: 5px solid #d22630;
+  padding: 24px 28px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgb(23 33 43 / 12%);
+}
+
+.system-error__brand,
+.system-error__code {
+  margin: 0 0 12px;
+  color: #53616d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.system-error h1 { margin: 0 0 12px; font-size: clamp(28px, 5vw, 42px); }
+.system-error p { line-height: 1.6; }
+.system-error__request { font-size: 13px; color: #53616d; overflow-wrap: anywhere; }
+.system-error button { margin-top: 12px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 6px; background: #005eb8; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.system-error button:focus-visible { outline: 3px solid #ffbf47; outline-offset: 3px; }

@@ -147,7 +147,12 @@ export function mountMainApp(root: HTMLElement): void {
     });
   });
 
-  root.querySelector<HTMLButtonElement>("#main-logout-button")?.addEventListener("click", () => {
+  root.querySelector<HTMLButtonElement>("#main-logout-button")?.addEventListener("click", async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Local profile is cleared even if the server is temporarily unavailable.
+    }
     sessionService.clearSession();
     window.location.hash = "";
     mountMainApp(root);
@@ -166,13 +171,6 @@ function bindHashNavigation(root: HTMLElement): void {
   hashNavigationRoot = root;
   hashNavigationHandler = () => mountMainApp(root);
   window.addEventListener("hashchange", hashNavigationHandler);
-}
-
-function buildMockAccessToken(email: string, password: string): string {
-  const normalizedEmail = email.trim().toLowerCase();
-  const passwordMarker = password ? "with-password" : "without-password";
-
-  return `mock-token:${normalizedEmail}:${passwordMarker}`;
 }
 
 function resolveActiveNavigationKey(allowedKeys: string[]): string {
@@ -382,10 +380,6 @@ async function renderLogin(root: HTMLElement): Promise<void> {
       if (appConfig.authBypassEnabled) {
         superAdminSessionService.clearSession();
         sessionService.setSession({
-          accessToken: buildMockAccessToken(
-            values.email,
-            values.password,
-          ),
           role: values.role,
         });
 

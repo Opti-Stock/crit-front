@@ -1,11 +1,20 @@
 services:
   crit-front:
-    build: .
+    build:
+      context: .
     container_name: crit-front
+    restart: unless-stopped
     ports:
-      - "5173:5173"
-    env_file:
-      - .env
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "5173:8080"
+    environment:
+      MAIN_API_UPSTREAM: http://main-api:3000
+      ADMIN_API_UPSTREAM: http://admin-api:3001
+      CHECKIN_API_UPSTREAM: http://checkin-api:3002
+      SUPER_ADMIN_API_UPSTREAM: http://super-admin-api:3003
+    networks:
+      - crit-api
+
+networks:
+  crit-api:
+    external: true
+    name: crit-api_default

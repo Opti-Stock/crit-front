@@ -9,8 +9,6 @@ import type {
 } from "../types/auth.types";
 
 interface LoginResponse {
-  accessToken: string;
-  tokenType: "Bearer";
   expiresIn: string;
 
   user: {
@@ -40,7 +38,6 @@ class AuthService {
     const role = this.resolveRole(response.user.roles);
 
     return {
-      accessToken: response.accessToken,
       role,
       user: {
         id: response.user.id,
@@ -50,6 +47,10 @@ class AuthService {
         collaboratorId: response.user.collaboratorId ?? null,
       },
     };
+  }
+
+  async logout(): Promise<void> {
+    await authApiClient.request<void>("/auth/logout", { method: "POST" });
   }
 
   private resolveRole(roles: readonly string[]): UserRole {

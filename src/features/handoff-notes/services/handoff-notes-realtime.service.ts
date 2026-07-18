@@ -1,6 +1,5 @@
 import type { HandoffNoteSummary } from "../../../types/operational.types";
 import { appConfig } from "../../../config/env";
-import { sessionService } from "../../auth/services/session.service";
 import { subscribeToSse } from "../../../services/realtime/sse-client";
 
 export type HandoffRealtimeStatus = "connected" | "unavailable" | "error";
@@ -34,7 +33,6 @@ export function subscribeToHandoffNotesRealtime(
 ): HandoffRealtimeSubscription {
   const subscription = subscribeToSse({
     url: `${appConfig.mainApiUrl}/realtime/events`,
-    accessToken: sessionService.getAccessToken(),
     onOpen: () => handlers.onStatusChange?.("connected"),
     onError: (message) => handlers.onStatusChange?.("error", message || HANDOFF_REALTIME_CONTRACT),
     onEvent: (eventName, envelope) => {

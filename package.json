@@ -7,8 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "lint": "echo \"Lint not configured yet\"",
-    "test": "node --test --experimental-strip-types tests/calendar-layout.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck && node scripts/check-security-contract.mjs",
+    "test": "node --test --experimental-strip-types tests/calendar-layout.test.ts tests/security-contract.test.ts",
     "test:e2e": "node --test --experimental-strip-types tests/e2e-browser-smoke.test.ts"
   },
   "devDependencies": {

@@ -1,11 +1,11 @@
 import type { SessionData } from "../types/auth.types";
 import { USER_ROLES } from "../../../types/role.types";
 
-const SESSION_STORAGE_KEY = "crit-assistance.session";
+const SESSION_STORAGE_KEY = "crit-assistance.profile";
 
 export class SessionService {
   getSession(): SessionData | null {
-    const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    const rawSession = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
 
     if (!rawSession) {
       return null;
@@ -15,8 +15,6 @@ export class SessionService {
       const parsedSession = JSON.parse(rawSession) as Partial<SessionData>;
 
       if (
-        !parsedSession.accessToken ||
-        typeof parsedSession.accessToken !== "string" ||
         !parsedSession.role ||
         !USER_ROLES.includes(parsedSession.role)
       ) {
@@ -25,7 +23,6 @@ export class SessionService {
       }
 
       const session: SessionData = {
-        accessToken: parsedSession.accessToken,
         role: parsedSession.role,
       };
 
@@ -62,39 +59,21 @@ export class SessionService {
     }
   }
 
-  getAccessToken(): string | null {
-    return this.getSession()?.accessToken ?? null;
-  }
-
   getRole(): SessionData["role"] | null {
     return this.getSession()?.role ?? null;
   }
 
   setSession(session: SessionData): void {
-    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   }
 
   clearSession(): void {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
   }
 
   isAuthenticated(): boolean {
-    return Boolean(this.getAccessToken());
+    return Boolean(this.getSession());
   }
-  
-
-  setAccessToken(accessToken: string): void {
-  const session = this.getSession();
-
-  if (!session) {
-    return;
-  }
-
-  this.setSession({
-    ...session,
-    accessToken,
-  });
-}
 }
 
 export const sessionService = new SessionService();

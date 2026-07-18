@@ -11,19 +11,13 @@ export interface SseSubscription {
 
 export function subscribeToSse(options: {
   url: string;
-  accessToken: string | null;
   onEvent: (eventName: string, data: RealtimeEnvelope) => void;
   onOpen?: () => void;
   onError?: (message: string) => void;
 }): SseSubscription {
   const controller = new AbortController();
 
-  if (!options.accessToken) {
-    window.queueMicrotask(() => options.onError?.("Authentication required"));
-    return { unsubscribe: () => controller.abort() };
-  }
-
-  void readSseStream({ ...options, accessToken: options.accessToken }, controller);
+  void readSseStream(options, controller);
 
   return {
     unsubscribe: () => controller.abort(),
@@ -33,7 +27,6 @@ export function subscribeToSse(options: {
 async function readSseStream(
   options: {
     url: string;
-    accessToken: string;
     onEvent: (eventName: string, data: RealtimeEnvelope) => void;
     onOpen?: () => void;
     onError?: (message: string) => void;
@@ -42,7 +35,7 @@ async function readSseStream(
 ): Promise<void> {
   try {
     const response = await fetch(options.url, {
-      headers: { Authorization: `Bearer ${options.accessToken}` },
+      credentials: "same-origin",
       signal: controller.signal,
     });
 
