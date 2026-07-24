@@ -1,8 +1,11 @@
 import {
   createAppointment,
   listAppointments,
+  recommendAppointments,
   updateAppointment,
 } from "../../../services/main-api/appointments";
+import type { AppointmentRecommendation } from "../../../services/main-api/appointments";
+import { ApiClientError } from "../../../services/api-client";
 import { listAttendance } from "../../../services/main-api/attendance";
 import { checkInAppointment } from "../../../services/checkin-api/appointments";
 import {
@@ -68,10 +71,9 @@ const APPOINTMENT_TIME_STEP_MINUTES = 5;
 const APPOINTMENT_TIME_STEP_SECONDS = APPOINTMENT_TIME_STEP_MINUTES * 60;
 const APPOINTMENT_START_HOUR = 7;
 const APPOINTMENT_END_HOUR = 18;
-const DEFAULT_PRE_SESSION_MINUTES = 5;
-const DEFAULT_POST_SESSION_MINUTES = 40;
 const PATIENT_SEARCH_DEBOUNCE_MS = 300;
 const PATIENT_SEARCH_PAGE_SIZE = 10;
+const RECOMMENDATION_DEBOUNCE_MS = 350;
 
 type CalendarMonthTone = "success" | "info" | "warning" | "danger" | "muted";
 
@@ -125,6 +127,22 @@ interface CalendarState {
   isLoading: boolean;
   isSaving: boolean;
   isCheckingIn: boolean;
+  recommendationStatus: "idle" | "loading" | "loaded" | "error";
+  recommendations: AppointmentRecommendation[];
+  recommendationError: string | null;
+  recommendationTimer: number | null;
+  recommendationController: AbortController | null;
+  selectedRecommendationId: string | null;
+  formDraft: AppointmentFormDraft;
+}
+
+interface AppointmentFormDraft {
+  collaboratorId: string;
+  clinicId: string;
+  roomId: string;
+  appointmentTypeId: string;
+  startsAt: string;
+  endsAt: string;
 }
 
 interface CalendarFilters {
@@ -174,6 +192,13 @@ export function mountCalendarPage(root: HTMLElement, role: UserRole): void {
     isLoading: true,
     isSaving: false,
     isCheckingIn: false,
+    recommendationStatus: "idle",
+    recommendations: [],
+    recommendationError: null,
+    recommendationTimer: null,
+    recommendationController: null,
+    selectedRecommendationId: null,
+    formDraft: emptyAppointmentFormDraft(),
   };
   render(root, state);
   void load(root, state);
@@ -285,17 +310,12 @@ function renderCreateAppointmentPanel(state: CalendarState): string {
   return `
     <div class="calendar-create-panel" role="dialog" aria-label="Nueva cita">
       ${renderForm(state)}
-      <aside class="calendar-availability" aria-label="Disponibilidad de terapeuta y sala">
+      <aside class="calendar-availability" aria-label="Horarios recomendados">
         <div>
-          <p class="app-eyebrow">Disponibilidad</p>
-          <h3>Terapeuta y sala</h3>
+          <p class="app-eyebrow">Agenda inteligente</p>
+          <h3>Mejores horarios</h3>
         </div>
-        <p>La agenda muestra el contexto visible. La validacion de conflictos, disponibilidad real y reglas de area dependen del backend.</p>
-        <dl>
-          <div><dt>Terapeuta</dt><dd>Selecciona profesional para cruzar horarios.</dd></div>
-          <div><dt>Sala</dt><dd>Selecciona sala para revisar ocupacion.</dd></div>
-          <div><dt>Conflictos</dt><dd>Pendiente de endpoint dedicado.</dd></div>
-        </dl>
+        ${renderRecommendations(state)}
       </aside>
     </div>
   `;
@@ -312,13 +332,17 @@ function renderForm(state: CalendarState): string {
   } else {
     defaultEnd.setMinutes(defaultEnd.getMinutes() + 45);
   }
-  const selectedClinicId = state.formClinicId || editingAppointment?.clinic.id || "";
+  const selectedClinicId =
+    state.formDraft.clinicId || state.formClinicId || editingAppointment?.clinic.id || "";
   const selectedRoomId =
-    editingAppointment && editingAppointment.clinic.id === selectedClinicId
+    state.formDraft.roomId
+    || (editingAppointment && editingAppointment.clinic.id === selectedClinicId
       ? editingAppointment.room.id
-      : "";
-  const selectedCollaboratorId = editingAppointment?.collaborator.id ?? "";
-  const selectedAppointmentTypeId = editingAppointment?.appointmentType.id ?? "";
+      : "");
+  const selectedCollaboratorId =
+    state.formDraft.collaboratorId || editingAppointment?.collaborator.id || "";
+  const selectedAppointmentTypeId =
+    state.formDraft.appointmentTypeId || editingAppointment?.appointmentType.id || "";
   const title = editingAppointment ? "Reagendar cita" : "Nueva cita";
 
   if (
@@ -347,10 +371,73 @@ function renderForm(state: CalendarState): string {
       ${selectField("clinicId", "Clinica", state.clinics, selectedClinicId)}
       ${selectField("roomId", "Cuarto", getRoomsForClinic(state, selectedClinicId), selectedRoomId)}
       ${selectField("appointmentTypeId", "Tipo", state.appointmentTypes, selectedAppointmentTypeId)}
-      <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" min="07:00" max="18:00" value="${formatInputDateTime(defaultStart)}" required /></label>
-      <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" min="07:00" max="18:00" value="${formatInputDateTime(defaultEnd)}" required /></label>
+      <label>Inicio<input name="startsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${escapeHtml(state.formDraft.startsAt || formatInputDateTime(defaultStart))}" required /></label>
+      <label>Fin<input name="endsAt" type="datetime-local" step="${APPOINTMENT_TIME_STEP_SECONDS}" value="${escapeHtml(state.formDraft.endsAt || formatInputDateTime(defaultEnd))}" required /></label>
       <button type="submit" ${state.isSaving ? "disabled" : ""}>${state.isSaving ? "Guardando..." : editingAppointment ? "Guardar cambios" : "Crear cita"}</button>
     </form>
+  `;
+}
+
+const RECOMMENDATION_REASON_LABELS: Record<
+  AppointmentRecommendation["reasons"][number]["code"],
+  string
+> = {
+  PATIENT_COMPACTION: "Reduce huecos del paciente",
+  COLLABORATOR_COMPACTION: "Compacta la agenda profesional",
+  ROOM_COMPACTION: "Aprovecha mejor la sala",
+  PATIENT_PREFERENCE: "Coincide con la preferencia",
+  COLLABORATOR_CONTINUITY: "Mantiene continuidad profesional",
+  TEMPORAL_PROXIMITY: "Fecha cercana",
+};
+
+function renderRecommendations(state: CalendarState): string {
+  const hasMinimumInput =
+    Boolean(state.patientComboboxes.form.selected?.id)
+    && Boolean(state.formDraft.clinicId || state.formClinicId);
+  if (!hasMinimumInput) {
+    return `<p>Selecciona paciente y clinica para consultar disponibilidad.</p>`;
+  }
+  if (state.recommendationStatus === "loading") {
+    return `<p role="status">Buscando horarios compatibles...</p>`;
+  }
+  if (state.recommendationStatus === "error") {
+    return `
+      <div class="calendar-recommendations__error" role="alert">
+        <p>${escapeHtml(state.recommendationError ?? "No se pudieron obtener recomendaciones.")}</p>
+        <button class="secondary-action" type="button" data-calendar-action="retry-recommendations">Reintentar</button>
+      </div>
+    `;
+  }
+  if (state.recommendationStatus === "loaded" && state.recommendations.length === 0) {
+    return `<p>No hay horarios compatibles. Cambia filtros o revisa la configuracion de agenda.</p>`;
+  }
+  if (state.recommendations.length === 0) {
+    return `<p>Las recomendaciones apareceran al completar los datos minimos.</p>`;
+  }
+  return `
+    <div class="calendar-recommendations">
+      ${state.recommendations.map((recommendation, index) => {
+        const reasons = recommendation.reasons
+          .filter((reason) => reason.points > 0)
+          .sort((left, right) => right.points - left.points)
+          .slice(0, 3);
+        return `
+          <button
+            class="calendar-recommendation${state.selectedRecommendationId === recommendation.recommendationId ? " calendar-recommendation--selected" : ""}"
+            type="button"
+            data-recommendation-id="${escapeHtml(recommendation.recommendationId)}"
+          >
+            <span class="calendar-recommendation__rank">${index + 1}</span>
+            <span class="calendar-recommendation__content">
+              <strong>${escapeHtml(formatDateTime(recommendation.startsAt))}</strong>
+              <span>${escapeHtml(recommendation.collaborator.fullName)} · ${escapeHtml(recommendation.room.name)}</span>
+              <small>${reasons.map((reason) => escapeHtml(RECOMMENDATION_REASON_LABELS[reason.code])).join(" · ")}</small>
+            </span>
+            <span class="calendar-recommendation__score">${recommendation.score}</span>
+          </button>
+        `;
+      }).join("")}
+    </div>
   `;
 }
 
@@ -1085,21 +1172,26 @@ function statusSelect(
 }
 
 function bindEvents(root: HTMLElement, state: CalendarState): void {
-  root.querySelector<HTMLFormElement>("[data-appointment-form]")?.addEventListener(
-    "submit",
-    (event) => {
+  const appointmentForm = root.querySelector<HTMLFormElement>("[data-appointment-form]");
+  appointmentForm?.addEventListener("submit", (event) => {
       event.preventDefault();
       const data = new FormData(event.currentTarget as HTMLFormElement);
       void createAppointmentFromForm(root, state, data);
-    },
-  );
-  root.querySelector<HTMLSelectElement>('[data-appointment-form] select[name="clinicId"]')?.addEventListener(
-    "change",
-    (event) => {
-      state.formClinicId = (event.currentTarget as HTMLSelectElement).value;
+  });
+  appointmentForm?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+    captureAppointmentFormDraft(appointmentForm, state);
+    if (target.name === "clinicId") {
+      state.formClinicId = target.value;
+      state.formDraft.roomId = "";
       render(root, state);
-    },
-  );
+    } else if (target.name === "appointmentTypeId" || target.name === "startsAt") {
+      syncDraftEndFromAppointmentType(state);
+      render(root, state);
+    }
+    queueRecommendations(root, state);
+  });
   root
   .querySelectorAll<HTMLInputElement>(
     'input[name="startsAt"], input[name="endsAt"]',
@@ -1115,12 +1207,22 @@ function bindEvents(root: HTMLElement, state: CalendarState): void {
       input.value = formatInputDateTime(
         normalizeAppointmentDateTime(date),
       );
+      if (appointmentForm) {
+        captureAppointmentFormDraft(appointmentForm, state);
+        queueRecommendations(root, state);
+      }
     });
   });
 
   root.querySelectorAll<HTMLButtonElement>("[data-calendar-action]").forEach((button) => {
     button.addEventListener("click", () => {
       handleCalendarAction(root, state, button.dataset.calendarAction ?? "", button);
+    });
+  });
+
+  root.querySelectorAll<HTMLButtonElement>("[data-recommendation-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      applyRecommendation(root, state, button.dataset.recommendationId);
     });
   });
 
@@ -1366,6 +1468,7 @@ function queuePatientSearch(
   const requestId = combo.requestId + 1;
   combo.requestId = requestId;
   syncPatientCombobox(root, state, kind);
+  if (kind === "form") clearRecommendations(state);
 
   combo.debounceTimer = window.setTimeout(() => {
     void loadPatientOptions(root, state, kind, trimmedQuery, requestId);
@@ -1440,6 +1543,7 @@ function selectPatientOption(
   }
 
   syncPatientCombobox(root, state, kind);
+  queueRecommendations(root, state);
 }
 
 function clearPatientCombobox(
@@ -1458,6 +1562,7 @@ function clearPatientCombobox(
   }
 
   syncPatientCombobox(root, state, kind);
+  clearRecommendations(state);
 }
 
 function resetPatientCombobox(combo: PatientComboboxState): void {
@@ -1523,6 +1628,150 @@ function syncPatientCombobox(
   }
 }
 
+function emptyAppointmentFormDraft(): AppointmentFormDraft {
+  return {
+    collaboratorId: "",
+    clinicId: "",
+    roomId: "",
+    appointmentTypeId: "",
+    startsAt: "",
+    endsAt: "",
+  };
+}
+
+function captureAppointmentFormDraft(
+  form: HTMLFormElement,
+  state: CalendarState,
+): void {
+  const data = new FormData(form);
+  state.formDraft = {
+    collaboratorId: String(data.get("collaboratorId") ?? ""),
+    clinicId: String(data.get("clinicId") ?? ""),
+    roomId: String(data.get("roomId") ?? ""),
+    appointmentTypeId: String(data.get("appointmentTypeId") ?? ""),
+    startsAt: String(data.get("startsAt") ?? ""),
+    endsAt: String(data.get("endsAt") ?? ""),
+  };
+}
+
+function syncDraftEndFromAppointmentType(state: CalendarState): void {
+  const appointmentType = state.appointmentTypes.find(
+    (candidate) => candidate.id === state.formDraft.appointmentTypeId,
+  );
+  const startsAt = parseAppointmentDateTime(state.formDraft.startsAt);
+  if (!appointmentType || !startsAt) return;
+  const endsAt = new Date(startsAt);
+  endsAt.setMinutes(endsAt.getMinutes() + appointmentType.defaultDurationMinutes);
+  state.formDraft.endsAt = formatInputDateTime(endsAt);
+}
+
+function queueRecommendations(
+  root: HTMLElement,
+  state: CalendarState,
+  immediate = false,
+): void {
+  if (state.recommendationTimer) {
+    window.clearTimeout(state.recommendationTimer);
+    state.recommendationTimer = null;
+  }
+  state.recommendationController?.abort();
+  state.recommendationController = null;
+
+  const patientId = state.patientComboboxes.form.selected?.id;
+  const clinicId = state.formDraft.clinicId || state.formClinicId;
+  if (!patientId || !clinicId) {
+    state.recommendationStatus = "idle";
+    state.recommendations = [];
+    state.recommendationError = null;
+    state.selectedRecommendationId = null;
+    render(root, state);
+    return;
+  }
+
+  state.recommendationStatus = "loading";
+  state.recommendationError = null;
+  state.selectedRecommendationId = null;
+  render(root, state);
+  state.recommendationTimer = window.setTimeout(() => {
+    state.recommendationTimer = null;
+    void loadRecommendations(root, state);
+  }, immediate ? 0 : RECOMMENDATION_DEBOUNCE_MS);
+}
+
+async function loadRecommendations(
+  root: HTMLElement,
+  state: CalendarState,
+): Promise<void> {
+  const patientId = state.patientComboboxes.form.selected?.id;
+  const clinicId = state.formDraft.clinicId || state.formClinicId;
+  if (!patientId || !clinicId) return;
+
+  const controller = new AbortController();
+  state.recommendationController?.abort();
+  state.recommendationController = controller;
+  try {
+    const result = await recommendAppointments({
+      patientId,
+      clinicId,
+      localDate: state.formDraft.startsAt.slice(0, 10) || undefined,
+      collaboratorId: state.formDraft.collaboratorId || undefined,
+      appointmentTypeId: state.formDraft.appointmentTypeId || undefined,
+      roomId: state.formDraft.roomId || undefined,
+      limit: 5,
+    }, controller.signal);
+    if (state.recommendationController !== controller) return;
+    state.recommendations = result.recommendations;
+    state.recommendationStatus = "loaded";
+    state.recommendationError = null;
+  } catch (error) {
+    if (controller.signal.aborted || state.recommendationController !== controller) return;
+    state.recommendations = [];
+    state.recommendationStatus = "error";
+    state.recommendationError =
+      error instanceof Error ? error.message : "No se pudieron obtener recomendaciones.";
+  } finally {
+    if (state.recommendationController === controller) {
+      state.recommendationController = null;
+      render(root, state);
+    }
+  }
+}
+
+function clearRecommendations(state: CalendarState): void {
+  if (state.recommendationTimer) {
+    window.clearTimeout(state.recommendationTimer);
+  }
+  state.recommendationController?.abort();
+  state.recommendationTimer = null;
+  state.recommendationController = null;
+  state.recommendationStatus = "idle";
+  state.recommendations = [];
+  state.recommendationError = null;
+  state.selectedRecommendationId = null;
+}
+
+function applyRecommendation(
+  root: HTMLElement,
+  state: CalendarState,
+  recommendationId: string | undefined,
+): void {
+  const recommendation = state.recommendations.find(
+    (candidate) => candidate.recommendationId === recommendationId,
+  );
+  if (!recommendation) return;
+  state.selectedRecommendationId = recommendation.recommendationId;
+  state.formClinicId = recommendation.clinic.id;
+  state.formDraft = {
+    collaboratorId: recommendation.collaborator.id,
+    clinicId: recommendation.clinic.id,
+    roomId: recommendation.room.id,
+    appointmentTypeId: recommendation.appointmentType.id,
+    startsAt: formatInputDateTime(new Date(recommendation.startsAt)),
+    endsAt: formatInputDateTime(new Date(recommendation.endsAt)),
+  };
+  render(root, state);
+}
+
 function parsePatientComboboxKind(
   value: string | undefined,
 ): PatientComboboxKind | null {
@@ -1560,31 +1809,43 @@ async function createAppointmentFromForm(
       throw new Error("Los horarios deben usar intervalos de 5 minutos.");
     }
 
-    if (
-      !isWithinBusinessHours(startsAt) ||
-      !isWithinBusinessHours(endsAt)
-    ) {
-      throw new Error(
-        "Las citas solo pueden programarse entre las 07:00 y las 18:00."
-      );
-    }
-
     if (endsAt.getTime() <= startsAt.getTime()) {
       throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
     }
 
     state.isSaving = true;
     render(root, state);
+    const appointmentTypeId = String(data.get("appointmentTypeId"));
+    const appointmentType = state.appointmentTypes.find(
+      (candidate) => candidate.id === appointmentTypeId,
+    );
+    if (!appointmentType) {
+      throw new Error("Selecciona un tipo de cita valido.");
+    }
+    if (
+      endsAt.getTime() - startsAt.getTime()
+      !== appointmentType.defaultDurationMinutes * 60_000
+    ) {
+      throw new Error(
+        `Este tipo de cita requiere ${appointmentType.defaultDurationMinutes} minutos.`,
+      );
+    }
+    const selectedRecommendation = state.recommendations.find(
+      (candidate) => candidate.recommendationId === state.selectedRecommendationId,
+    );
     const appointmentInput = {
       patientId,
       collaboratorId: String(data.get("collaboratorId")),
       clinicId,
       roomId,
-      appointmentTypeId: String(data.get("appointmentTypeId")),
+      appointmentTypeId,
       startsAt: startsAt.toISOString(),
       endsAt: endsAt.toISOString(),
-      preSessionMinutes: DEFAULT_PRE_SESSION_MINUTES,
-      postSessionMinutes: DEFAULT_POST_SESSION_MINUTES,
+      preSessionMinutes: appointmentType.defaultPreSessionMinutes,
+      postSessionMinutes: appointmentType.defaultPostSessionMinutes,
+      ...(selectedRecommendation
+        ? { recommendationId: selectedRecommendation.recommendationId }
+        : {}),
     };
 
     if (state.editingAppointmentId) {
@@ -1600,15 +1861,21 @@ async function createAppointmentFromForm(
     state.isLoading = true;
     state.isSaving = false;
     state.showCreateForm = false;
-    state.editingAppointmentId = null;
-    state.formClinicId = "";
-    state.draftStartsAt = null;
-    resetPatientCombobox(state.patientComboboxes.form);
+    resetAppointmentFormState(state);
     render(root, state);
     await load(root, state);
   } catch (error) {
     state.isSaving = false;
-    state.message = error instanceof Error ? error.message : "No se pudo guardar la cita.";
+    if (
+      error instanceof ApiClientError
+      && error.payload?.code === "APPOINTMENT_RECOMMENDATION_STALE"
+    ) {
+      state.message = "Ese horario acaba de ocuparse. Conservamos tus datos y buscamos nuevas opciones.";
+      state.selectedRecommendationId = null;
+      queueRecommendations(root, state, true);
+    } else {
+      state.message = error instanceof Error ? error.message : "No se pudo guardar la cita.";
+    }
     render(root, state);
   }
 }
@@ -1659,6 +1926,9 @@ function handleCalendarAction(
       state.isLoading = true;
       render(root, state);
       void load(root, state);
+      return;
+    case "retry-recommendations":
+      queueRecommendations(root, state, true);
       return;
     case "toggle-form":
       state.showCreateForm = !state.showCreateForm;
@@ -1738,6 +2008,14 @@ function startReschedule(
   state.showCreateForm = true;
   state.formClinicId = appointment.clinic.id;
   state.draftStartsAt = new Date(appointment.startsAt);
+  state.formDraft = {
+    collaboratorId: appointment.collaborator.id,
+    clinicId: appointment.clinic.id,
+    roomId: appointment.room.id,
+    appointmentTypeId: appointment.appointmentType.id,
+    startsAt: formatInputDateTime(new Date(appointment.startsAt)),
+    endsAt: formatInputDateTime(new Date(appointment.endsAt)),
+  };
   state.patientComboboxes.form.query = appointment.patient.fullName;
   state.patientComboboxes.form.selected = {
     id: appointment.patient.id,
@@ -1747,12 +2025,15 @@ function startReschedule(
   state.patientComboboxes.form.isOpen = false;
   state.patientComboboxes.form.status = "idle";
   render(root, state);
+  queueRecommendations(root, state);
 }
 
 function resetAppointmentFormState(state: CalendarState): void {
   state.editingAppointmentId = null;
   state.formClinicId = "";
   state.draftStartsAt = null;
+  state.formDraft = emptyAppointmentFormDraft();
+  clearRecommendations(state);
   resetPatientCombobox(state.patientComboboxes.form);
 }
 

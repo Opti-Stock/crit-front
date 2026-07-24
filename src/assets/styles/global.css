@@ -3141,6 +3141,73 @@ button:disabled {
   margin: 2px 0 0;
 }
 
+.calendar-recommendations {
+  display: grid;
+  gap: 8px;
+}
+
+.calendar-recommendation {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 42px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 74px;
+  padding: 10px;
+  border: 1px solid #d8dee5;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #17202a;
+  text-align: left;
+}
+
+.calendar-recommendation:hover,
+.calendar-recommendation--selected {
+  border-color: #25735f;
+  background: #e9f6f1;
+}
+
+.calendar-recommendation__rank,
+.calendar-recommendation__score {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+
+.calendar-recommendation__rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #17202a;
+  color: #ffffff;
+}
+
+.calendar-recommendation__score {
+  color: #25735f;
+  font-size: 1.05rem;
+}
+
+.calendar-recommendation__content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.calendar-recommendation__content span,
+.calendar-recommendation__content small {
+  overflow-wrap: anywhere;
+}
+
+.calendar-recommendation__content small {
+  color: #607080;
+  line-height: 1.35;
+}
+
+.calendar-recommendations__error {
+  display: grid;
+  gap: 10px;
+}
+
 .calendar-grid-card {
   max-width: 100%;
   min-height: 0;
