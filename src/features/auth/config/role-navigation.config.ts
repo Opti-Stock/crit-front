@@ -26,7 +26,13 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
   {
     key: "calendar",
     label: "Calendario",
-    allowedRoles: ["recepcion","direccion", "admin"],
+    allowedRoles: ["recepcion", "coordinador", "direccion", "admin"],
+    app: "main",
+  },
+  {
+    key: "scheduling",
+    label: "Configurar agenda",
+    allowedRoles: ["recepcion", "coordinador", "admin"],
     app: "main",
   },
   {
