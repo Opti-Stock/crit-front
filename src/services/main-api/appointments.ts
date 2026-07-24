@@ -23,6 +23,7 @@ export interface CreateAppointmentInput {
   endsAt: string;
   preSessionMinutes: number;
   postSessionMinutes: number;
+  recommendationId?: string;
 }
 
 export interface UpdateAppointmentInput {
@@ -35,7 +36,70 @@ export interface UpdateAppointmentInput {
   endsAt?: string;
   preSessionMinutes?: number;
   postSessionMinutes?: number;
+  recommendationId?: string;
   status?: "scheduled" | "cancelled" | "rescheduled";
+}
+
+export interface AppointmentRecommendation {
+  recommendationId: string;
+  startsAt: string;
+  endsAt: string;
+  patientId: string;
+  clinic: { id: string; name: string };
+  collaborator: { id: string; fullName: string };
+  room: { id: string; name: string };
+  appointmentType: { id: string; name: string };
+  preSessionMinutes: number;
+  postSessionMinutes: number;
+  score: number;
+  reasons: Array<{
+    code:
+      | "PATIENT_COMPACTION"
+      | "COLLABORATOR_COMPACTION"
+      | "ROOM_COMPACTION"
+      | "PATIENT_PREFERENCE"
+      | "COLLABORATOR_CONTINUITY"
+      | "TEMPORAL_PROXIMITY";
+    points: number;
+  }>;
+  metrics: {
+    patientGapMinutes: number | null;
+    collaboratorGapMinutes: number | null;
+    roomGapMinutes: number | null;
+    matchesPreference: boolean;
+    keepsContinuity: boolean;
+  };
+}
+
+export interface AppointmentRecommendationsResponse {
+  timeZone: string | null;
+  window: { localDate: string | null; days: number };
+  criteria: {
+    patientId: string;
+    clinicId: string;
+    collaboratorId: string | null;
+    appointmentTypeId: string | null;
+    roomId: string | null;
+  };
+  recommendations: AppointmentRecommendation[];
+}
+
+export function recommendAppointments(
+  input: {
+    patientId: string;
+    clinicId: string;
+    localDate?: string;
+    collaboratorId?: string;
+    appointmentTypeId?: string;
+    roomId?: string;
+    limit?: number;
+  },
+  signal?: AbortSignal,
+) {
+  return mainApiClient.request<AppointmentRecommendationsResponse>(
+    "/appointments/recommendations",
+    { method: "POST", body: input, signal },
+  );
 }
 
 export function listAppointments(query: ListAppointmentsQuery = {}) {
