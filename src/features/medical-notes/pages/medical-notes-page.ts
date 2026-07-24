@@ -8,6 +8,13 @@ import { escapeHtml, formatDateTime, todayRange } from "../../../utils/dom";
 import type { UserRole } from "../../../types/role.types";
 import { sessionService } from "../../auth/services/session.service";
 import { canWriteMedicalNotes } from "../../../guards/role-guard";
+import {
+  bindHistoryAiPanel,
+  createHistoryAiState,
+  prepareHistoryAiState,
+  renderHistoryAiPanel,
+  type HistoryAiState,
+} from "../../ai-assistance/history-ai-panel";
 
 interface MedicalNotesState {
   appointments: AppointmentSummary[];
@@ -19,6 +26,7 @@ interface MedicalNotesState {
   isLoading: boolean;
   currentCollaboratorId: string | null;
   scopeFilter: "all" | "mine" | "area";
+  ai: HistoryAiState;
 }
 
 export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
@@ -33,6 +41,7 @@ export function mountMedicalNotesPage(root: HTMLElement, role: UserRole): void {
     isLoading: true,
     currentCollaboratorId: session?.user?.collaboratorId ?? null,
     scopeFilter: "all",
+    ai: createHistoryAiState("medical"),
   };
   render(root, state, role);
   void load(root, state, role);
@@ -127,6 +136,7 @@ function renderMedicalNotesChat(state: MedicalNotesState, role: UserRole): strin
   const patientAppointments = getScopedAppointments(state).filter(
     (appointment) => appointment.patient.id === patient.id,
   );
+  prepareHistoryAiState(state.ai, patient.id, "medical");
 
   return `
     ${renderMedicalPatientFilter(state, role)}
@@ -156,6 +166,7 @@ function renderMedicalNotesChat(state: MedicalNotesState, role: UserRole): strin
             </div>
             <span class="status-pill">${patientNotes.length} notas</span>
           </div>
+          ${renderHistoryAiPanel(state.ai)}
           ${canWriteMedicalNotes(role) ? renderForm(patientAppointments) : `<p class="hint-text">Vista de solo lectura para este rol.</p>`}
           ${
             patientNotes.length === 0
@@ -256,6 +267,7 @@ function renderMedicalNoteBubble(note: MedicalNoteSummary): string {
 }
 
 function bindEvents(root: HTMLElement, state: MedicalNotesState, role: UserRole): void {
+  bindHistoryAiPanel(root, state.ai);
   root.querySelector<HTMLFormElement>("[data-medical-note-form]")?.addEventListener(
     "submit",
     (event) => {

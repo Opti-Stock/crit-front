@@ -4964,3 +4964,120 @@ button:disabled {
 .system-error__request { font-size: 13px; color: #53616d; overflow-wrap: anywhere; }
 .system-error button { margin-top: 12px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 6px; background: #005eb8; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .system-error button:focus-visible { outline: 3px solid #ffbf47; outline-offset: 3px; }
+.history-ai {
+  display: grid;
+  gap: 14px;
+  padding: 16px 0;
+  border-top: 1px solid #d8dee5;
+  border-bottom: 1px solid #d8dee5;
+}
+
+.history-ai__header,
+.history-ai__summary-heading,
+.history-ai__feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-ai__header h4,
+.history-ai__summary h5,
+.history-ai__summary h6,
+.history-ai__interaction p,
+.history-ai__empty,
+.history-ai__loading,
+.history-ai__warning,
+.history-ai__message,
+.history-ai__error {
+  margin: 0;
+}
+
+.history-ai__warning {
+  color: #715f11;
+  font-size: 0.88rem;
+}
+
+.history-ai__error {
+  color: #a52f24;
+}
+
+.history-ai__message {
+  color: #25735f;
+}
+
+.history-ai__summary {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-left: 4px solid #25735f;
+  background: #f5faf8;
+}
+
+.history-ai__summary--stale {
+  border-left-color: #b98700;
+  background: #fffae8;
+}
+
+.history-ai__summary-heading span,
+.history-ai__insufficient {
+  color: #715f11;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.history-ai__summary ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.history-ai__question {
+  display: grid;
+  gap: 10px;
+}
+
+.history-ai__suggestions,
+.history-ai__sources,
+.history-ai__feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.history-ai__suggestions button {
+  max-width: 100%;
+  font-size: 0.82rem;
+  white-space: normal;
+}
+
+.history-ai__interactions {
+  display: grid;
+  gap: 12px;
+}
+
+.history-ai__interaction {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #d8dee5;
+}
+
+.history-ai__sources {
+  font-size: 0.84rem;
+}
+
+.history-ai__sources > span {
+  font-weight: 800;
+}
+
+.history-ai__feedback {
+  justify-content: flex-start;
+}
+
+@media (max-width: 640px) {
+  .history-ai__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

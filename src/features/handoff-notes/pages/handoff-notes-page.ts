@@ -29,6 +29,13 @@ import {
   renderPatientComboboxOptions,
   type PatientComboboxOption,
 } from "../../../components/patient-combobox";
+import {
+  bindHistoryAiPanel,
+  createHistoryAiState,
+  prepareHistoryAiState,
+  renderHistoryAiPanel,
+  type HistoryAiState,
+} from "../../ai-assistance/history-ai-panel";
 
 interface HandoffFilters {
   patientQuery: string;
@@ -57,6 +64,7 @@ interface HandoffState {
   publishAs: string | null;
   scopeFilter: "all" | "mine" | "area";
   filters: HandoffFilters;
+  ai: HistoryAiState;
 }
 
 const CATEGORY_OPTIONS: readonly {
@@ -106,6 +114,7 @@ export function mountHandoffNotesPage(root: HTMLElement, role: UserRole): void {
       area: "",
       category: "",
     },
+    ai: createHistoryAiState("handoff"),
   };
 
   if (!canAccessHandoffNotes(role)) {
@@ -404,6 +413,7 @@ function renderConversation(state: HandoffState, role: UserRole): string {
   const notes = getFilteredNotes(state, role).filter(
     (note) => note.patient.id === state.selectedPatientId,
   );
+  prepareHistoryAiState(state.ai, state.selectedPatientId, "handoff");
 
   return `
     <div class="handoff-conversation">
@@ -419,6 +429,7 @@ function renderConversation(state: HandoffState, role: UserRole): string {
         </div>
         <span class="status-pill">${notes.length} notas</span>
       </div>
+      ${renderHistoryAiPanel(state.ai)}
       ${
         notes.length === 0
           ? `<p class="empty-state">Sin notas para este paciente con los filtros actuales.</p>`
@@ -520,6 +531,7 @@ function renderNote(
 }
 
 function bindEvents(root: HTMLElement, state: HandoffState, role: UserRole): void {
+  bindHistoryAiPanel(root, state.ai);
   root.querySelector<HTMLFormElement>("[data-handoff-filter-form]")?.addEventListener(
     "submit",
     (event) => {
