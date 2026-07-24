@@ -190,6 +190,8 @@ export function getSidebarIconForKey(key: string): SidebarIconName {
       return "roles";
     case "rooms":
       return "rooms";
+    case "scheduling":
+      return "appointmentTypes";
     case "users":
       return "users";
     default:

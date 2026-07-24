@@ -11,6 +11,7 @@ import { mountHandoffNotesPage } from "../../features/handoff-notes/pages/handof
 import { subscribeToHandoffNotesRealtime } from "../../features/handoff-notes/services/handoff-notes-realtime.service";
 import { mountMedicalNotesPage } from "../../features/medical-notes/pages/medical-notes-page";
 import { mountNotificationsPage } from "../../features/notifications/pages/notifications-page";
+import { mountSchedulingSettingsPage } from "../../features/scheduling/pages/scheduling-settings-page";
 import { subscribeToNotificationsRealtime } from "../../features/notifications/services/notifications-realtime.service";
 import { isAuthenticated } from "../../guards/auth-guard";
 import {
@@ -341,6 +342,9 @@ function mountMainView(root: HTMLElement, key: string, role: UserRole): void {
       return;
     case "notifications":
       mountNotificationsPage(root, role);
+      return;
+    case "scheduling":
+      void mountSchedulingSettingsPage(root, role);
       return;
     default:
       mountDashboardPage(root, role);
