@@ -24,3 +24,11 @@ test("custom error page covers the controlled demo failure states", async () => 
   }
   assert.match(source, /requestId/);
 });
+
+test("main app does not fall back to dashboard for roles without internal views", async () => {
+  const source = await readFile(new URL("src/apps/main/main-app.ts", root), "utf8");
+
+  assert.match(source, /internalMainNavigation\.length === 0/);
+  assert.match(source, /checkin\.html\?mode=reception-checkin/);
+  assert.match(source, /renderNoWorkspaceAccess/);
+});

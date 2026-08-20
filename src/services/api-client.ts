@@ -86,7 +86,7 @@ function buildUrl(
   query?: ApiRequestOptions["query"],
 ): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = new URL(`${baseUrl}${normalizedPath}`);
+  const url = new URL(`${baseUrl}${normalizedPath}`, window.location.origin);
 
   if (query) {
     for (const [key, value] of Object.entries(query)) {
