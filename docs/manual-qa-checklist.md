@@ -93,22 +93,32 @@ npm run build
 
 ## 5. Levantar servicios
 
-Abre una terminal por proceso:
+Usa los `docker compose` de cada repo para no abrir una terminal por cada API.
+Deja una terminal por proyecto:
+
+Terminal 1, base de datos:
+
+```powershell
+cd C:\Users\esteb\apps\crit-project\crit-db
+docker compose up --build --wait
+```
+
+Terminal 2, las cuatro APIs juntas:
 
 ```powershell
 cd C:\Users\esteb\apps\crit-project\crit-api
-npm run dev:main
-npm run dev:admin
-npm run dev:checkin
-npm run dev:super-admin
+docker compose up --build --wait
 ```
 
-En otra terminal:
+Terminal 3, frontend:
 
 ```powershell
 cd C:\Users\esteb\apps\crit-project\crit-front
-npm run dev
+docker compose up --build
 ```
+
+Si algun puerto queda ocupado, detén procesos previos de Node/Vite o ejecuta
+`docker compose down` en el repo correspondiente antes de volver a levantar.
 
 Health checks:
 
