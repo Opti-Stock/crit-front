@@ -19,6 +19,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly PermissionKey[]> = {
     "notifications:read",
   ],
   direccion: [
+    "admin:entry",
     "attendance:read",
     "handoff-notes:read",
     "medical-notes:read",

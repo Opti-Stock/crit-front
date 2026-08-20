@@ -59,10 +59,24 @@ export function mountMainApp(root: HTMLElement): void {
   }
 
   const mainNavigation = getMainNavigationForRole(session.role);
+  const internalMainNavigation = mainNavigation.filter(
+    (item) => item.key !== "badge-scan",
+  );
   const adminEntry = getAdminEntryForRole(session.role);
   const isApWorkspace = isApRole(session.role);
+
+  if (internalMainNavigation.length === 0) {
+    if (mainNavigation.some((item) => item.key === "badge-scan")) {
+      window.location.assign("/checkin.html?mode=reception-checkin");
+      return;
+    }
+
+    renderNoWorkspaceAccess(root, session.role);
+    return;
+  }
+
   const activeKey = resolveActiveNavigationKey(
-    mainNavigation.map((item) => item.key),
+    internalMainNavigation.map((item) => item.key),
   );
 
   root.innerHTML = `
@@ -148,16 +162,41 @@ export function mountMainApp(root: HTMLElement): void {
     });
   });
 
-  root.querySelector<HTMLButtonElement>("#main-logout-button")?.addEventListener("click", async () => {
+  root.querySelector<HTMLButtonElement>("#main-logout-button")?.addEventListener("click", () => {
+    void logoutFromMainApp(root, { clearHash: true });
+  });
+}
+
+function renderNoWorkspaceAccess(root: HTMLElement, role: UserRole): void {
+  root.innerHTML = `
+    <main class="auth-page" aria-labelledby="main-app-title">
+      <section class="auth-panel">
+        <p class="app-eyebrow">Main app</p>
+        <h1 id="main-app-title">Sin workspace operativo</h1>
+        <p class="auth-form__hint">
+          El rol ${escapeHtml(formatRoleLabel(role))} no tiene vistas operativas habilitadas en este MVP.
+        </p>
+        ${renderSidebarLogoutButton("main-logout-button")}
+      </section>
+    </main>
+  `;
+
+  root.querySelector<HTMLButtonElement>("#main-logout-button")?.addEventListener("click", () => {
+    void logoutFromMainApp(root);
+  });
+}
+
+async function logoutFromMainApp(root: HTMLElement, options: { clearHash?: boolean } = {}): Promise<void> {
     try {
       await authService.logout();
     } catch {
       // Local profile is cleared even if the server is temporarily unavailable.
     }
     sessionService.clearSession();
-    window.location.hash = "";
+    if (options.clearHash) {
+      window.location.hash = "";
+    }
     mountMainApp(root);
-  });
 }
 
 function bindHashNavigation(root: HTMLElement): void {

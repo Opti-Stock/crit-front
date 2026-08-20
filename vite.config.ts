@@ -4,10 +4,10 @@ import { defineConfig } from "vite";
 export default defineConfig({
   server: {
     proxy: {
-      "/api": "http://localhost:3000",
-      "/admin": "http://localhost:3001",
-      "/checkin": "http://localhost:3002",
-      "/super-admin": "http://localhost:3003",
+      "^/api(?:/|$)": "http://localhost:3000",
+      "^/admin(?:/|$)": "http://localhost:3001",
+      "^/checkin(?:/|$)": "http://localhost:3002",
+      "^/super-admin(?:/|$)": "http://localhost:3003",
     },
   },
   build: {

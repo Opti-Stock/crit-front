@@ -30,7 +30,7 @@ let activeScannerControls: IScannerControls | null = null;
 let cameraScanPausedUntil = 0;
 
 export function mountCheckinApp(root: HTMLElement): void {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateInputValue(new Date());
   const params = new URLSearchParams(window.location.search);
   const session = sessionService.getSession();
   const isGeneralReception = session?.role === "recepcion_general";
@@ -676,4 +676,13 @@ function formatTimeRange(startsAt: string, endsAt: string): string {
     minute: "2-digit",
   });
   return `${formatter.format(new Date(startsAt))} - ${formatter.format(new Date(endsAt))}`;
+}
+
+function formatDateInputValue(date: Date): string {
+  // Date inputs expect the local calendar day; toISOString() can drift across UTC boundaries.
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }

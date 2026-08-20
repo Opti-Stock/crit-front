@@ -78,7 +78,7 @@ export const ROLE_NAVIGATION_CONFIG: readonly NavigationItemConfig[] = [
   {
     key: "admin",
     label: "Admin",
-    allowedRoles: ["admin"],
+    allowedRoles: ["admin", "direccion"],
     app: "admin-entry",
   },
 ] as const;

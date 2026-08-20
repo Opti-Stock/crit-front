@@ -14,6 +14,11 @@ test("coordinators can access the appointment calendar", () => {
   assert.equal(entry?.allowedRoles.includes("coordinador"), true);
 });
 
+test("direccion can access the admin entrypoint", () => {
+  const entry = ROLE_NAVIGATION_CONFIG.find((item) => item.key === "admin");
+  assert.equal(entry?.allowedRoles.includes("direccion"), true);
+});
+
 test("scheduling service uses only same-origin Main API paths", async () => {
   const source = await readFile(
     new URL("../src/services/main-api/scheduling.ts", import.meta.url),
