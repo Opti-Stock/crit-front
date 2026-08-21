@@ -1,11 +1,18 @@
 export interface AdminTableColumn<T> {
   header: string;
   render(item: T): string;
+  sortBy?: string;
+}
+
+export interface AdminTableSort {
+  sortBy: string;
+  sortDir: "asc" | "desc";
 }
 
 export function renderAdminTable<T>(
   columns: readonly AdminTableColumn<T>[],
   rows: readonly T[],
+  sort?: AdminTableSort,
 ): string {
   return `
     <table class="admin-table">
@@ -13,8 +20,19 @@ export function renderAdminTable<T>(
         <tr>
           ${columns
             .map(
-              (column) =>
-                `<th>${column.header}</th>`,
+              (column) => {
+                if (!column.sortBy) return `<th>${column.header}</th>`;
+                const active = sort?.sortBy === column.sortBy;
+                const nextDir = active && sort?.sortDir === "asc" ? "desc" : "asc";
+                const marker = active ? (sort.sortDir === "asc" ? " ↑" : " ↓") : "";
+                return `
+                  <th>
+                    <button class="admin-table__sort" type="button" data-admin-sort-by="${column.sortBy}" data-admin-sort-dir="${nextDir}">
+                      ${column.header}${marker}
+                    </button>
+                  </th>
+                `;
+              },
             )
             .join("")}
         </tr>
@@ -26,7 +44,7 @@ export function renderAdminTable<T>(
             ? `
               <tr>
                 <td colspan="${columns.length}">
-                  No records found.
+                  No hay registros con estos filtros.
                 </td>
               </tr>
             `

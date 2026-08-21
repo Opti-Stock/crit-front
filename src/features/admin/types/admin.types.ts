@@ -1,3 +1,10 @@
+import type { PaginationMeta } from "../../../types/api";
+
+export interface AdminListResult<T> {
+  items: readonly T[];
+  meta: PaginationMeta;
+}
+
 export interface UserSummary {
   id: string;
   fullName: string;

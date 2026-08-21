@@ -26,13 +26,24 @@ export function mountErrorPage(root: HTMLElement): void {
         <h1 id="system-error-title">${escapeHtml(state.title)}</h1>
         <p>${escapeHtml(state.message)}</p>
         ${requestId ? `<p class="system-error__request">Referencia: <code>${escapeHtml(requestId)}</code></p>` : ""}
-        <button type="button" data-error-action>${escapeHtml(state.action)}</button>
+        <div class="system-error__actions">
+          <button type="button" data-error-action>${escapeHtml(state.action)}</button>
+          <button class="system-error__back" type="button" data-error-back>Volver atrás</button>
+        </div>
       </section>
     </main>`;
 
   root.querySelector<HTMLButtonElement>("[data-error-action]")?.addEventListener("click", () => {
     if (status === "500" || status === "503" || status === "offline") {
       window.location.reload();
+      return;
+    }
+    window.location.assign("/");
+  });
+
+  root.querySelector<HTMLButtonElement>("[data-error-back]")?.addEventListener("click", () => {
+    if (window.history.length > 1) {
+      window.history.back();
       return;
     }
     window.location.assign("/");

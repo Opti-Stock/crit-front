@@ -1,6 +1,8 @@
 import { appConfig } from "../../../config/env";
 import { adminApiClient } from "../../../services/admin-api/client";
+import type { PaginationMeta } from "../../../types/api";
 import { mockUsers } from "../mocks/users.mock";
+import type { AdminListResult } from "../types/admin.types";
 import { UserDto } from "../types/user.types";
 
 export interface CreateUserInput {
@@ -13,49 +15,39 @@ export interface CreateUserInput {
   position?: string;
 }
 
+export interface ListUsersOptions {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: "active" | "inactive";
+  roleId?: string;
+  includeDeleted?: boolean;
+  sortBy?: "fullName" | "email" | "status";
+  sortDir?: "asc" | "desc";
+}
+
 class UsersService {
-  async getAll(options: { includeDeleted?: boolean } = {}): Promise<readonly UserDto[]> {
+  async list(options: ListUsersOptions = {}): Promise<AdminListResult<UserDto>> {
 
     if (appConfig.adminMocksEnabled) {
-      return mockUsers;
+      return paginateMock(mockUsers, options.page ?? 1, options.pageSize ?? mockUsers.length);
     }
 
-    // TODO (Backend):
-    // Confirm final response contract.
-    //
-    // If endpoint returns:
-    //
-    // {
-    //   success: true,
-    //   data: UserDto[]
-    // }
-    //
-    // this is enough:
-    //
-    // return adminApiClient.request<readonly UserDto[]>("/users");
-    //
-    // If instead it returns:
-    //
-    // {
-    //   success: true,
-    //   data: {
-    //     items:[]
-    //   }
-    // }
-    //
-    // then replace with:
-    //
-    // const response =
-    //   await adminApiClient.request<{
-    //     items: UserDto[];
-    //   }>("/users");
-    //
-    // return response.items;
-
-    return adminApiClient.request<readonly UserDto[]>(
+    const response = await adminApiClient.requestWithMeta<readonly UserDto[], PaginationMeta>(
       "/users",
-      { query: options.includeDeleted ? { includeDeleted: true } : undefined },
+      { query: { ...options } },
     );
+    return { items: response.data, meta: response.meta ?? fallbackMeta(response.data.length, options) };
+  }
+
+  async getAll(options: ListUsersOptions = {}): Promise<readonly UserDto[]> {
+    const items: UserDto[] = [];
+    for (let page = 1, totalPages = 1; page <= totalPages; page += 1) {
+      const result = await this.list({ ...options, page, pageSize: 100 });
+      items.push(...result.items);
+      totalPages = result.meta.totalPages;
+    }
+    return items;
   }
 
   async create(input: CreateUserInput): Promise<UserDto> {
@@ -107,3 +99,17 @@ class UsersService {
 }
 
 export const usersService = new UsersService();
+
+function fallbackMeta(total: number, options: ListUsersOptions): PaginationMeta {
+  const page = options.page ?? 1;
+  const pageSize = options.pageSize ?? (total || 1);
+  return { page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+}
+
+function paginateMock<T>(items: readonly T[], page: number, pageSize: number): AdminListResult<T> {
+  const start = (page - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    meta: { page, pageSize, total: items.length, totalPages: Math.ceil(items.length / pageSize) },
+  };
+}
