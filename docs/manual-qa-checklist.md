@@ -1,18 +1,25 @@
 # CRIT Assist manual QA checklist
 
 Esta guia cubre el levantamiento local y una pasada manual completa del MVP.
-Usala desde `C:\Users\esteb\apps\crit-project` con los tres repos en `dev`.
+Usala desde Git Bash en `/c/Users/esteb/apps/crit-project` con los tres repos
+en `dev`.
 
 ## 1. Estado inicial
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-db
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-db
+git switch dev
+git pull --ff-only origin dev
 git status --short --branch
 
-cd ..\crit-api
+cd ../crit-api
+git switch dev
+git pull --ff-only origin dev
 git status --short --branch
 
-cd ..\crit-front
+cd ../crit-front
+git switch dev
+git pull --ff-only origin dev
 git status --short --branch
 ```
 
@@ -21,28 +28,36 @@ pisar trabajo pendiente.
 
 ## 2. Base de datos
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-db
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-db
 docker compose up --build --wait
 docker compose ps
-.\scripts\verify-db.ps1
+./scripts/verify-db.sh
 ```
 
-Si `verify-db.ps1` falla por checksum de una migracion ya aplicada en un
-volumen local, valida al menos los contratos:
+Si `verify-db.sh` falla por checksum de una migracion ya aplicada en un volumen
+local, ese volumen tiene historial viejo. En desarrollo local puedes
+reconstruirlo desde cero:
 
-```powershell
+```bash
+docker compose down -v
+./scripts/verify-db.sh
+```
+
+Esto borra los datos locales de `crit-db`. Si no quieres borrar el volumen,
+valida al menos los contratos para revisar el estado actual:
+
+```bash
 docker exec crit-db psql -v ON_ERROR_STOP=1 -U postgres -d crit_db -f /opt/crit-db/tests/001_schema_contract.sql
 docker exec crit-db psql -v ON_ERROR_STOP=1 -U postgres -d crit_db -f /opt/crit-db/tests/002_security_contract.sql
 ```
 
-No uses `docker compose down --volumes` salvo que quieras borrar toda la base
-local.
+No uses `docker compose down -v` salvo que quieras borrar toda la base local.
 
 ## 3. API y datos demo
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-api
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-api
 npm run db:check
 npm run platform:bootstrap-super-admin
 npm run admin:bootstrap
@@ -84,8 +99,8 @@ VITE_SUPER_ADMIN_API_URL=/super-admin
 
 Valida:
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-front
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-front
 npm run lint
 npm test
 npm run build
@@ -98,31 +113,39 @@ Deja una terminal por proyecto:
 
 Terminal 1, base de datos:
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-db
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-db
+git switch dev
+git pull --ff-only origin dev
 docker compose up --build --wait
 ```
 
 Terminal 2, las cuatro APIs juntas:
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-api
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-api
+git switch dev
+git pull --ff-only origin dev
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/export-windows-ca-bundle.ps1
 docker compose up --build --wait
 ```
 
 Terminal 3, frontend:
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-front
-docker compose up --build
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-front
+git switch dev
+git pull --ff-only origin dev
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/export-windows-ca-bundle.ps1
+docker compose up --build --wait
 ```
 
 Si el build del frontend falla en `npm ci` con
 `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, exporta los certificados locales de Windows
 para el build de Docker y vuelve a levantar:
 
-```powershell
-.\scripts\export-windows-ca-bundle.ps1
+```bash
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/export-windows-ca-bundle.ps1
 docker compose up --build --wait
 ```
 
@@ -132,20 +155,21 @@ Si `crit-front` queda `unhealthy` con logs de `host not found in upstream
 "main-api"`, confirma que el compose de `crit-api` ya esta healthy y recrea el
 frontend:
 
-```powershell
+```bash
 docker compose down
 docker compose up --build --wait
 ```
 
 Health checks:
 
-```powershell
-Invoke-RestMethod http://localhost:3000/health/live
-Invoke-RestMethod http://localhost:3000/health/ready
-Invoke-RestMethod http://localhost:3001/health/ready
-Invoke-RestMethod http://localhost:3002/health/ready
-Invoke-RestMethod http://localhost:3003/health/ready
-Invoke-WebRequest http://localhost:5173/health
+```bash
+curl -fsS http://localhost:3000/health/live
+curl -fsS http://localhost:3000/health/ready
+curl -fsS http://localhost:3001/health/ready
+curl -fsS http://localhost:3002/health/ready
+curl -fsS http://localhost:3003/health/ready
+curl -fsS http://localhost:5173/health
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
 ## 6. Main app
@@ -252,14 +276,14 @@ Abre y verifica el titulo, mensaje y boton:
 
 Deten frontend, luego APIs y finalmente DB:
 
-```powershell
-cd C:\Users\esteb\apps\crit-project\crit-front
-# Ctrl+C en Vite
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-front
+docker compose down
 
-cd ..\crit-api
-# Ctrl+C en cada API
+cd ../crit-api
+docker compose down
 
-cd ..\crit-db
+cd ../crit-db
 docker compose down
 ```
 
