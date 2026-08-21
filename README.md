@@ -35,4 +35,14 @@ npm run build
 
 El contenedor compila con Vite y sirve los assets mediante Nginx. Las variables `*_UPSTREAM` apuntan a los cuatro servicios de API.
 
+Si `docker compose up --build` falla en `npm ci` con `UNABLE_TO_VERIFY_LEAF_SIGNATURE`,
+genera primero el bundle local de certificados de Windows:
+
+```powershell
+.\scripts\export-windows-ca-bundle.ps1
+docker compose up --build --wait
+```
+
+El archivo generado en `docker/certs/local-ca.crt` es local y no se sube a git.
+
 Consulta [docs/README.md](docs/README.md) para operación, seguridad y despliegue.

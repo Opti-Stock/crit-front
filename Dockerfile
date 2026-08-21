@@ -2,9 +2,15 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
+ENV NODE_OPTIONS=--use-system-ca
+
+COPY docker/certs/ /tmp/local-certs/
 COPY package*.json ./
 
-RUN npm ci --legacy-peer-deps
+RUN if [ -f /tmp/local-certs/local-ca.crt ]; then \
+      export NODE_EXTRA_CA_CERTS=/tmp/local-certs/local-ca.crt; \
+    fi; \
+    npm ci --legacy-peer-deps
 
 COPY . .
 
