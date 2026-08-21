@@ -130,6 +130,28 @@ powershell.exe -ExecutionPolicy Bypass -File ./scripts/export-windows-ca-bundle.
 docker compose up --build --wait
 ```
 
+Para probar resúmenes y preguntas IA sin modelos pesados, configura primero
+`crit-api/.env` con:
+
+```txt
+AI_ENABLED=true
+AI_RUNTIME=mock
+AI_WORKER_TENANT_IDS=00000000-0000-0000-0000-000000000001
+```
+
+Luego deja una terminal extra en Git Bash para el worker mock:
+
+```bash
+cd /c/Users/esteb/apps/crit-project/crit-api
+AI_ENABLED=true AI_RUNTIME=mock AI_WORKER_TENANT_IDS=00000000-0000-0000-0000-000000000001 npm run worker:ai
+```
+
+Si solo quieres procesar una vuelta de la cola:
+
+```bash
+AI_ENABLED=true AI_RUNTIME=mock AI_WORKER_TENANT_IDS=00000000-0000-0000-0000-000000000001 npm run worker:ai:once
+```
+
 Terminal 3, frontend:
 
 ```bash
@@ -187,6 +209,8 @@ Con `demo.admin@crit.test`, revisa:
 - Configurar agenda: selector de clinica y tabs `Horarios`, `Clinica y tipos`,
   `Profesionales`, `Consultorios`, `Bloqueos`, `Preferencias`.
 - Notas medicas: lista por paciente, panel de historial, resumen IA y preguntas.
+  Si `AI_ENABLED=false`, el panel debe explicar que la asistencia IA esta
+  apagada en este entorno y no debe romper el historial.
 - Notas de enlace: filtros, lista de pacientes/conversacion, badges de pendientes.
 - Notificaciones: bandeja, estados leida/no leida y apertura de conversacion
   cuando exista.

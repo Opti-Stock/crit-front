@@ -22,6 +22,7 @@ export interface HistoryAiState {
   interactions: AiInteraction[];
   error: string | null;
   actionMessage: string | null;
+  assistanceDisabled: boolean;
 }
 
 const SUGGESTIONS: Record<NoteHistoryKind, string[]> = {
@@ -47,6 +48,7 @@ export function createHistoryAiState(kind: NoteHistoryKind): HistoryAiState {
     interactions: [],
     error: null,
     actionMessage: null,
+    assistanceDisabled: false,
   };
 }
 
@@ -64,11 +66,11 @@ export function renderHistoryAiPanel(state: HistoryAiState): string {
     <section class="history-ai" data-history-ai-panel>
       <header class="history-ai__header">
         <div><p class="app-eyebrow">Asistencia local</p><h4>Resumen y preguntas al historial</h4></div>
-        <button type="button" data-ai-summarize ${state.loading ? "disabled" : ""}>
+        <button class="history-ai__summarize" type="button" data-ai-summarize ${state.loading || state.assistanceDisabled ? "disabled" : ""}>
           ${state.loading ? "Procesando..." : state.summary ? "Actualizar resumen" : "Resumir historial"}
         </button>
       </header>
-      <p class="history-ai__warning">La IA puede equivocarse. Verifica siempre las notas fuente.</p>
+      <p class="history-ai__warning">${state.assistanceDisabled ? "Asistencia IA apagada en este entorno. Activa el worker mock para QA local." : "La IA puede equivocarse. Verifica siempre las notas fuente."}</p>
       ${state.error ? `<p class="history-ai__error" role="alert">${escapeHtml(state.error)}</p>` : ""}
       ${state.actionMessage ? `<p class="history-ai__message" role="status">${escapeHtml(state.actionMessage)}</p>` : ""}
       ${renderSummary(state.summary)}
@@ -150,6 +152,7 @@ async function requestSummary(root: HTMLElement, state: HistoryAiState) {
   const kind = state.kind;
   state.loading = true;
   state.error = null;
+  state.assistanceDisabled = false;
   state.actionMessage = "Resumen en cola.";
   refresh(root, state);
   try {
@@ -163,6 +166,7 @@ async function requestSummary(root: HTMLElement, state: HistoryAiState) {
       refresh(root, state);
     }
   } catch (error) {
+    state.assistanceDisabled = isAiDisabled(error);
     state.error = errorMessage(error, "No se pudo solicitar el resumen.");
   } finally {
     if (!isCurrent(state, patientId, kind)) return;
@@ -177,6 +181,7 @@ async function askQuestion(root: HTMLElement, state: HistoryAiState, question: s
   const patientId = state.patientId;
   const kind = state.kind;
   state.error = null;
+  state.assistanceDisabled = false;
   state.actionMessage = "Pregunta en cola.";
   refresh(root, state);
   try {
@@ -194,6 +199,7 @@ async function askQuestion(root: HTMLElement, state: HistoryAiState, question: s
       refresh(root, state);
     }
   } catch (error) {
+    state.assistanceDisabled = isAiDisabled(error);
     state.error = errorMessage(error, "No se pudo enviar la pregunta.");
     refresh(root, state);
   }
@@ -242,13 +248,14 @@ function renderSummary(summary: NoteSummary | null): string {
 }
 
 function renderQuestionComposer(state: HistoryAiState): string {
+  const disabled = state.loading || state.assistanceDisabled;
   return `
     <form class="history-ai__question" data-ai-question-form>
-      <label>Preguntar al historial<textarea name="question" maxlength="500" rows="3" required></textarea></label>
+      <label>Preguntar al historial<textarea name="question" maxlength="500" rows="2" required ${disabled ? "disabled" : ""}></textarea></label>
       <div class="history-ai__suggestions">
-        ${SUGGESTIONS[state.kind].map((value) => `<button class="secondary-action" type="button" data-ai-suggestion="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join("")}
+        ${SUGGESTIONS[state.kind].map((value) => `<button class="history-ai__chip" type="button" data-ai-suggestion="${escapeHtml(value)}" ${disabled ? "disabled" : ""}>${escapeHtml(value)}</button>`).join("")}
       </div>
-      <button type="submit">Preguntar</button>
+      <button class="history-ai__ask" type="submit" ${disabled ? "disabled" : ""}>Preguntar</button>
     </form>
   `;
 }
@@ -311,7 +318,14 @@ function refresh(root: HTMLElement, state: HistoryAiState) {
 }
 
 function errorMessage(error: unknown, fallback: string) {
+  if (isAiDisabled(error)) {
+    return "Asistencia IA apagada en este entorno. Para QA local inicia el worker con AI_RUNTIME=mock.";
+  }
   return error instanceof Error ? error.message : fallback;
+}
+
+function isAiDisabled(error: unknown) {
+  return error instanceof ApiClientError && error.payload?.code === "AI_DISABLED";
 }
 
 function delay(milliseconds: number) {
