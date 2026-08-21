@@ -117,8 +117,25 @@ cd C:\Users\esteb\apps\crit-project\crit-front
 docker compose up --build
 ```
 
+Si el build del frontend falla en `npm ci` con
+`UNABLE_TO_VERIFY_LEAF_SIGNATURE`, exporta los certificados locales de Windows
+para el build de Docker y vuelve a levantar:
+
+```powershell
+.\scripts\export-windows-ca-bundle.ps1
+docker compose up --build --wait
+```
+
 Si algun puerto queda ocupado, detén procesos previos de Node/Vite o ejecuta
 `docker compose down` en el repo correspondiente antes de volver a levantar.
+Si `crit-front` queda `unhealthy` con logs de `host not found in upstream
+"main-api"`, confirma que el compose de `crit-api` ya esta healthy y recrea el
+frontend:
+
+```powershell
+docker compose down
+docker compose up --build --wait
+```
 
 Health checks:
 
